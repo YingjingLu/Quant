@@ -1,0 +1,9 @@
+--MongoDB--
+
+## Stock ##
+
+database name:
+STK_<stocksymbol>: STK_AMD
+
+collection name:
+<wnat to do> + _ + <time> + <time unit>: TRADE_30min; TRADE_1day
