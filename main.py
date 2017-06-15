@@ -157,14 +157,23 @@ class TradingApp(TestWrapper, TestClient):
         self.reqId2nErr = collections.defaultdict(int)
         self.globalCancelOnly = False
 
-        self.db_client = MongoClient()
-        self.db = self.db_client.STK_AMD
-        self.collection = self.db['TRADES_test']
-        self.count = 0
 
+    ##################### Togglers ###################################
         self.add_historical_data = 0
         self.query_dict = {}
         self.is_req_head_stamp = 1
+
+    ###############      End togglers ############################
+        self.db_client = MongoClient()
+        if (self.is_req_head_stamp == 1):
+            self.db = self.db_client.head_timestamp
+            # reqId:{"stock": stk, "what_to_do": wtd}
+            self.time_stamp_req_dict = dict()
+            self.stk_timestamp_list = ["AMD", "FB", "AAPL", "AMZN", "NVDA", "BABA", "WB"]
+            self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
+
+
+        self.count = 0
 
     def dumpTestCoverageSituation(self):
         for clntMeth in sorted(self.clntMeth2callCount.keys()):
@@ -272,9 +281,27 @@ class TradingApp(TestWrapper, TestClient):
               "High:", high, "Low:", low, "Close:", close, "Volume:", volume,
               "Count:", count, "WAP:", wap,  "time", datetime.datetime.now())
 
+    def headTimeStamp_req_wrapper(self):
+        ticket_start = Query_CST.HEAD_TIMESTAMP_1
+        for stk in self.stk_timestamp_list:
+            for wtd in self.what_to_do_list:
+                self.time_stamp_req_dict[ticket_start] = {"stock": stk, "what_to_do": wtd}
+                self.headTimeStamp_req(ticket_start,
+                                       ContractCreateMethods.create_US_stock_contract(stock_symbol = stk),
+                                       wtd)
+                ticket_start += 1
+                time.sleep(1)
+
+
+
+    def headTimeStamp_req(self, tick_id, contract, what_to_do):
+        self.reqHeadTimeStamp(tick_id, contract, what_to_do, 0, 1)
+
     def headTimestamp(self, reqId:int, headTimestamp:str):
-        print("HeadTimestamp: ", reqId, " ", headTimestamp)
-        print(parse_datetime(headTimestamp))
+        post = {self.time_stamp_req_dict[reqId]["what_to_do"]: parse_datetime(headTimestamp)}
+        print("post: ", post)
+        self.db[self.time_stamp_req_dict[reqId]["stock"]].insert_one(post)
+        print("------ Canceled --------")
 
     def realTimeBars_cancel(self):
         # Canceling real time bars
@@ -349,7 +376,7 @@ class TradingApp(TestWrapper, TestClient):
             if self.add_historical_data:
                 self.historicalDataRequests_req()
             elif self.is_req_head_stamp:
-                self.reqHeadTimeStamp(4103, ContractSamples.USStockAtSmart(), "TRADES", 0, 1)
+                self.headTimeStamp_req_wrapper()
             else:
                 self.marketDepthOperations_req()
             #self.tickDataOperations_req()
@@ -360,8 +387,6 @@ class TradingApp(TestWrapper, TestClient):
         if self.add_historical_data:
             self.historicalDataRequests_cancel()
         #self.tickDataOperations_cancel()
-        elif self.is_req_head_stamp:
-            self.cancelHeadTimeStamp(4103)
         else:
 
             self.realTimeBars_cancel()

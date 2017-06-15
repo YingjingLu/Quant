@@ -7,3 +7,11 @@ STK_<stocksymbol>: STK_AMD
 
 collection name:
 <wnat to do> + _ + <time> + <time unit>: TRADE_30min; TRADE_1day
+
+
+
+DBs:
+
+head_timestamp: start time of each security historical data
+  collection: stk symbol
+  document: what_to_do, datetime

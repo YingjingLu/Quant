@@ -6,6 +6,14 @@ class STK_CST:
     SELL = -1
 
 class Query_CST:
+    STK_HISTORY_WHAT_TO_DO_LIST = [
+                               "TRADES",
+                               "MIDPOINT",
+                               "BID",
+                               "ASK",
+                               "BID_ASK",
+                               ]
+
     HISTORY_TRADES_1SEC_1 = 4001
     HISTORY_TRADES_5SEC_1 = 4002
     HISTORY_TRADES_10SEC_1 = 4003
@@ -29,20 +37,3 @@ class Query_CST:
     HISTORY_TRADES_1M_1 = 4021
 
     HEAD_TIMESTAMP_1 = 14001
-    HEAD_TIMESTAMP_2 = 14002
-    HEAD_TIMESTAMP_3 = 14003
-    HEAD_TIMESTAMP_4 = 14004
-    HEAD_TIMESTAMP_5 = 14005
-    HEAD_TIMESTAMP_6 = 14006
-    HEAD_TIMESTAMP_7 = 14007
-    HEAD_TIMESTAMP_8 = 14008
-    HEAD_TIMESTAMP_9 = 14009
-    HEAD_TIMESTAMP_10 = 14010
-    HEAD_TIMESTAMP_11 = 14011
-    HEAD_TIMESTAMP_12 = 14012
-    HEAD_TIMESTAMP_13 = 14013
-    HEAD_TIMESTAMP_14 = 14014
-    HEAD_TIMESTAMP_15 = 14015
-    HEAD_TIMESTAMP_16 = 14016
-    HEAD_TIMESTAMP_17 = 14017
-    HEAD_TIMESTAMP_18 = 14018
