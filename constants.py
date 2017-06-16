@@ -13,6 +13,30 @@ class Query_CST:
                                "ASK",
                                "BID_ASK",
                                ]
+    STK_HISTORY_BAR_SIZE = [
+                            "5sec",
+                            "10secs",
+                            "15secs",
+                            "30secs",
+                            "1min",
+                            "2mins",
+                            "3mins",
+                            "5mins",
+                            "10mins",
+                            "15mins",
+                            "20mins",
+                            "30mins",
+                            "1hour",
+                            "2hours",
+                            "3hours",
+                            "4hours",
+                            "8hours",
+                            "1day",
+                            "1week",
+                            "1month"
+                            ]
+
+
 
     HISTORY_TRADES_1SEC_1 = 4001
     HISTORY_TRADES_5SEC_1 = 4002
@@ -37,3 +61,13 @@ class Query_CST:
     HISTORY_TRADES_1M_1 = 4021
 
     HEAD_TIMESTAMP_1 = 14001
+class QUERY_HISTORY:
+    HEAD_TIMESTANP_HISTORY = {
+                                "AMD": 1,
+                                "FB": 1,
+                                "AAPL": 1,
+                                "AMZN": 1,
+                                "NVDA": 1,
+                                "BABA": 1,
+                                "WB": 1
+                                }

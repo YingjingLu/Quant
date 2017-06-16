@@ -14,4 +14,4 @@ DBs:
 
 head_timestamp: start time of each security historical data
   collection: stk symbol
-  document: what_to_do, datetime
+  document: what_to_do: datetime

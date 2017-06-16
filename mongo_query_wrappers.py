@@ -84,3 +84,11 @@ def MA(collection, interval, unit, field):
         pass
 
     return total / bar_count
+
+def get_stk_headtimestamp(db, symbol, what_to_do):
+    result = db[symbol].find_one({"what_to_do": what_to_do})
+    if result == None:
+        print("No timestamp for this stock symbol: %s, what_to_do %s" % (symbol, what_to_do))
+        return None
+    pprint.pprint(result)
+    return result[what_to_do]

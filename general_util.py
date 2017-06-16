@@ -17,3 +17,24 @@ def parse_datetime(dt):
         converted = datetime.datetime(yr,mo,dy,int(time_list[0]), int(time_list[1]), int(time_list[2]))
 
     return converted
+
+
+def incr_weekday(weekday):
+    if(weekday > 7 or weekday < 1):
+        print("WRONG WEEKDAY")
+        return
+    if weekday == 7:
+        return 1
+    else:
+        weekday += 1
+        return weekday
+
+def decr_weekday(weekday):
+    if(weekday > 7 or weekday < 1):
+        print("WRONG WEEKDAY")
+        return
+    if weekday == 1:
+        return 7
+    else:
+        weekday -= 1
+        return weekday

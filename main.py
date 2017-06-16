@@ -159,9 +159,9 @@ class TradingApp(TestWrapper, TestClient):
 
 
     ##################### Togglers ###################################
-        self.add_historical_data = 0
+        self.add_historical_data = 1
         self.query_dict = {}
-        self.is_req_head_stamp = 1
+        self.is_req_head_stamp = 0
 
     ###############      End togglers ############################
         self.db_client = MongoClient()
@@ -171,6 +171,12 @@ class TradingApp(TestWrapper, TestClient):
             self.time_stamp_req_dict = dict()
             self.stk_timestamp_list = ["AMD", "FB", "AAPL", "AMZN", "NVDA", "BABA", "WB"]
             self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
+
+        elif(self.add_historical_data == 1):
+            self.historical_data_req_dict = dict()
+            self.stk_historical_list = ["AMD"]
+            self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
+            self.from_start = 0
 
 
         self.count = 0
@@ -197,8 +203,13 @@ class TradingApp(TestWrapper, TestClient):
         if self.async:
             self.startApi()
 
+    def historicalDataRequests_from_start_req(self, symbol):
+        # shift from 0-6 to 1-7
+        cur_weekday = datetime.date.today().weekday() + 1
+        head_timestamp = 0
 
     def historicalDataRequests_req(self):
+        cur_weekday = datetime.date.today().weekday() + 1
         # Requesting historical data
         # ! [reqHeadTimeStamp]
         #self.reqHeadTimeStamp(4103, ContractSamples.USStockAtSmart(), "TRADES", 0, 1)
@@ -206,32 +217,28 @@ class TradingApp(TestWrapper, TestClient):
         # ! [reqhistoricaldata]
         # queryTime = (datetime.datetime.today() -
         #              datetime.timedelta(days=180)).strftime("%Y%m%d %H:%M:%S")
-        queryTime = datetime.datetime.today().strftime("%Y%m%d %H:%M:%S")
+        queryTime = (datetime.datetime.today()-datetime.timedelta(days=4)).strftime("%Y%m%d %H:%M:%S")
         # String queryTime = DateTime.Now.AddMonths(-6).ToString("yyyyMMdd HH:mm:ss")
         # self.reqHistoricalData(4101, ContractSamples.USStockAtSmart(), queryTime,
         #                        "1 M", "1 day", "TRADES", 1, 1, [])
-        contract = ContractCreateMethods.create_US_stock_contract("AMD", "STK")
+        contract = ContractCreateMethods.create_US_stock_contract("AMD")
         self.reqHistoricalData(4101, contract, queryTime,
-                               "5 Y", "30 mins", "TRADES", 1, 1, [])
+                               "1 Y", "1 month", "TRADES", 1, 1, [])
 
-    def historicalDataRequests_cancel(self):
+    def historicalDataRequests_cancel(self, reqId):
         # Canceling historical data requests
-        self.cancelHistoricalData(4101)
+        self.cancelHistoricalData(reqId)
+    def historicalDataRequests_cancel_wrapper(self):
+        # Canceling historical data requests
+        self.cancelHistoricalData(reqId)
+
 
     def historicalData(self, reqId: TickerId, date: str, _open: float, high: float,
                        low: float, close: float, volume: int, barCount: int,
                        WAP: float, hasGaps: int):
         super().historicalData(reqId, date, _open, high, low, close, volume,
                                barCount, WAP, hasGaps)
-        mongo_insert_historical(self.collection, date, _open, high, low, close, volume, barCount, WAP, hasGaps)
-
-        self.count += 1
-        if self.count % 14 == 0:
-            print ("1 day finished\n")
-
-        if (yr == 2017 and mo == 6 and dy == 2):
-            print("finished !!!!!!!!")
-            self.stop()
+        print("reqId: ", reqId, "date: ", date, "volumn: ", volume)
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         super().historicalDataEnd(reqId, start, end)
@@ -374,7 +381,12 @@ class TradingApp(TestWrapper, TestClient):
             print("Executing requests")
             self.reqGlobalCancel()
             if self.add_historical_data:
-                self.historicalDataRequests_req()
+                if self.from_start == 1:
+                    self.historicalDataRequests_from_start_req()
+                elif self.from_start == 0:
+                    self.historicalDataRequests_req()
+                else:
+                    print("wrong historical_data_req from_start value")
             elif self.is_req_head_stamp:
                 self.headTimeStamp_req_wrapper()
             else:
@@ -385,7 +397,7 @@ class TradingApp(TestWrapper, TestClient):
 
     def stop(self):
         if self.add_historical_data:
-            self.historicalDataRequests_cancel()
+            self.historicalDataRequests_cancel_wrapper()
         #self.tickDataOperations_cancel()
         else:
 
