@@ -106,7 +106,7 @@ def get_stk_headtimestamp(db, symbol, what_to_do):
     return result[what_to_do]
 
 def datetime_exist(collection, dt):
-    if collection.find_one({"date": dt}) == None:
+    if  collection.find_one({"date": dt}) == None or collection.find_one({"date": dt}) == dict():
         return False
     return True
 

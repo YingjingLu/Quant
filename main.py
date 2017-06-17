@@ -12,6 +12,7 @@ import argparse
 import datetime
 import collections
 import inspect
+import threading
 
 import logging
 import time
@@ -173,13 +174,13 @@ class TradingApp(TestWrapper, TestClient):
             self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
 
         elif(self.add_historical_data == 1):
-            # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1}
+            # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1, "db":db, "collection": collection}
             self.historical_data_req_dict = dict()
             self.stk_historical_list = ["AMD"]
             self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
             self.from_start = 0
 
-
+        self.sem = threading.BoundedSemaphore(1)
         self.req_count = 0
 
     def dumpTestCoverageSituation(self):
@@ -205,19 +206,41 @@ class TradingApp(TestWrapper, TestClient):
             self.startApi()
 
     # bar size: 5secs - 1 min
-    def historicalDataRequests_req_wrapper(self):
+    def historicalDataRequests_req_wrapper(self, symbol):
+        reqId = QUERY_CST.HISTORY_REQ_1
+        for what_to_do in QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST:
+            head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, symbol, what_to_do)
+            for bar_size in QUERY_CST.HISTORY_BAR_SIZE_DICT.keys():
+                self.historical_data_req_dict[reqId] = {
+                                                        "symbol": symbol,
+                                                        "what_to_do": what_to_do,
+                                                        "bar_size": bar_size,
+                                                        "start_dt":head_timestamp,
+                                                        "end_dt": datetime.datetime.today(),
+                                                        "first_time": 1,
+                                                        "db": self.db_client[symbol_to_db_name(symbol)],
+                                                        "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]
+                                                        }
+                reqId += 1
         for reqId, query_dict in self.historical_data_req_dict.items():
             self.historicalDataRequests_req(query_dict["end_dt"], reqId)
 
     def historicalDataRequests_req(self, end_dt, reqId):
+        start_dt = self.historical_data_req_dict[reqId]["start_dt"]
+        if end_dt <= start_dt:
+            print("Completed Historical Req: ", self.historical_data_req_dict[reqId])
+            del self.historical_data_req_dict[reqId]
+            return
+        self.sem.acquire()
+        print("locked")
         self.req_count += 1
         symbol = self.historical_data_req_dict[reqId]["symbol"]
         what_to_do = self.historical_data_req_dict[reqId]["what_to_do"]
         bar_size = self.historical_data_req_dict[reqId]["bar_size"]
-        start_dt = self.historical_data_req_dict[reqId]["start_dt"]
+
         step_size = bar_size_to_step_size(bar_size)
 
-        head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, "AMD", "TRADES")
+
         if end_dt <= start_dt:
             print("Completed Historical Req: ", self.historical_data_req_dict[reqId])
             del self.historical_data_req_dict[reqId]
@@ -237,7 +260,8 @@ class TradingApp(TestWrapper, TestClient):
         contract = ContractCreateMethods.create_US_stock_contract(symbol)
         self.reqHistoricalData(reqId, contract, queryTime,
                                step_size, bar_size, what_to_do, 1, 1, [])
-
+        print("released")
+        self.sem.release()
     def historicalDataRequests_cancel(self, reqId):
         # Canceling historical data requests
         self.cancelHistoricalData(reqId)
@@ -249,15 +273,35 @@ class TradingApp(TestWrapper, TestClient):
         super().historicalData(reqId, date, _open, high, low, close, volume,
                                barCount, WAP, hasGaps)
         print("reqId: ", reqId, "date: ", date, "volumn: ", volume)
-        first_time = self.historical_data_req_dict[reqId]["first_time"]
+        if self.historical_data_req_dict[reqId]["first_time"] == 1:
+            self.historical_data_req_dict[reqId]["collection"].create_index([
+                                                                            "datetime", pymongo.DESCENDING
+                                                                             ],
+                                                                             unique = True)
+            self.historical_data_req_dict[reqId]["first_time"] = 0
+        mongo_insert_historical(self.historical_data_req_dict[reqId]["collection"],
+                                date,
+                                _open,
+                                high,
+                                low,
+                                close,
+                                volume,
+                                barCount,
+                                WAP,
+                                hasGaps)
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         super().historicalDataEnd(reqId, start, end)
         print("HistoricalDataEnd ", reqId, "from", start, "to", end)
-        if self.req_count >= 60:
-            time.sleep(500)
+        self.sem.acquire()
+        print("locked")
+        if self.req_count >= 50:
+            time.sleep(400)
+            self.req_count = 0
         new_dt = parse_datetime(start) - calc_timedelta(self.historical_data_req_dict[reqId]["bar_size"])
         self.historicalDataRequests_cancel(reqId)
+        print("released")
+        self.sem.release()
         time.sleep(2)
         self.historicalDataRequests_req(new_dt)
 
@@ -401,7 +445,7 @@ class TradingApp(TestWrapper, TestClient):
                 if self.from_start == 1:
                     self.historicalDataRequests_from_start_req()
                 elif self.from_start == 0:
-                    self.historicalDataRequests_req_wrapper()
+                    self.historicalDataRequests_req_wrapper("APPL")
                 else:
                     print("wrong historical_data_req from_start value")
             elif self.is_req_head_stamp:

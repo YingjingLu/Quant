@@ -12,7 +12,7 @@ def mongo_insert_historical(collection, date: str, _open: float, high: float,
     converted = parse_datetime(date)
     if datetime_exist(collection, converted) == False:
         post = {
-                "date" : converted,
+                "datetime" : converted,
                 "open" : _open,
                 "high" : high,
                 "low" : low,
