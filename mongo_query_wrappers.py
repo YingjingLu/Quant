@@ -85,10 +85,34 @@ def MA(collection, interval, unit, field):
 
     return total / bar_count
 
+def symbol_to_db_name(symbol: str):
+    return "STK_" + symbol
+
+def req_barsize_to_db_barsize(req_barsize: str):
+    lst = req_barsize.split(" ")
+    # if no space in between:
+    if len(lst != 2):
+        print("Invalid entry for barsize")
+    else:
+        return lst[0] + lst[1]
+
+
+def convert_collection_name(what_to_do: str, bar_size: str):
+    return what_to_do + "_" + req_barsize_to_db_barsize(bar_size)
+
+
 def get_stk_headtimestamp(db, symbol, what_to_do):
-    result = db[symbol].find_one({"what_to_do": what_to_do})
+    result = db[symbol].find_one()
     if result == None:
         print("No timestamp for this stock symbol: %s, what_to_do %s" % (symbol, what_to_do))
         return None
     pprint.pprint(result)
     return result[what_to_do]
+
+def datetime_exist(collection, dt):
+    if collection.find_one({"date": dt}) == None:
+        return False
+    return True
+
+def most_current_datetime(collection):
+    return collection.find().sort({"date" : pymongo.DESCENDING}).limit(1)["date"]

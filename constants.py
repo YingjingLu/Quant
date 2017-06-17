@@ -13,9 +13,38 @@ class Query_CST:
                                "ASK",
                                "BID_ASK",
                                ]
-    STK_HISTORY_BAR_SIZE = [
-                            "5sec",
-                            "10secs",
+    STK_HISTORY_WHAT_TO_DO_SET = {
+                               "TRADES",
+                               "MIDPOINT",
+                               "BID",
+                               "ASK",
+                               "BID_ASK",
+                               }
+    STK_HISTORY_BAR_SIZE_SET = {
+                            "5 sec",
+                            "10 secs",
+                            "15 secs",
+                            "30 secs",
+                            "1 min",
+                            "2 mins",
+                            "3 mins",
+                            "5 mins",
+                            "10 mins",
+                            "15 mins",
+                            "20 mins",
+                            "30 mins",
+                            "1 hour",
+                            "2 hours",
+                            "3 hours",
+                            "4 hours",
+                            "8 hours",
+                            "1 day",
+                            "1 week",
+                            "1 month"
+                            }
+    TO_DB_BAR_SIZE_DICT = {
+                            "5 sec": "5sec",
+                            "10 secs": "10secs",
                             "15secs",
                             "30secs",
                             "1min",
@@ -34,7 +63,8 @@ class Query_CST:
                             "1day",
                             "1week",
                             "1month"
-                            ]
+                           }
+
 
 
 

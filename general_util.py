@@ -1,9 +1,5 @@
 import datetime
 
-
-def parse_date(date):
-    pass
-
 def parse_datetime(dt):
     total_list = dt.split(" ")
     yr = int(total_list[0][0:4])

@@ -173,13 +173,14 @@ class TradingApp(TestWrapper, TestClient):
             self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
 
         elif(self.add_historical_data == 1):
+            # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1}
             self.historical_data_req_dict = dict()
             self.stk_historical_list = ["AMD"]
             self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
             self.from_start = 0
 
 
-        self.count = 0
+        self.req_count = 0
 
     def dumpTestCoverageSituation(self):
         for clntMeth in sorted(self.clntMeth2callCount.keys()):
@@ -203,13 +204,22 @@ class TradingApp(TestWrapper, TestClient):
         if self.async:
             self.startApi()
 
-    def historicalDataRequests_from_start_req(self, symbol):
-        # shift from 0-6 to 1-7
-        cur_weekday = datetime.date.today().weekday() + 1
-        head_timestamp = 0
+    # bar size: 5secs - 1 min
+    def historicalDataRequests_req_wrapper():
 
-    def historicalDataRequests_req(self):
-        cur_weekday = datetime.date.today().weekday() + 1
+    def historicalDataRequests_req(self, end_dt, reqId):
+        self.req_count += 1
+        symbol = self.historical_data_req_dict[reqId]["symbol"]
+        what_to_do = self.historical_data_req_dict[reqId]["what_to_do"]
+        bar_size = self.historical_data_req_dict[reqId]["bar_size"]
+        start_dt = self.historical_data_req_dict[reqId]["start_dt"]
+
+
+        head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, "AMD", "TRADES")
+        if end_dt <= start_dt:
+            print("Completed Historical Req: ", self.historical_data_req_dict[reqId])
+            del self.historical_data_req_dict[reqId]
+            return
         # Requesting historical data
         # ! [reqHeadTimeStamp]
         #self.reqHeadTimeStamp(4103, ContractSamples.USStockAtSmart(), "TRADES", 0, 1)
@@ -217,13 +227,14 @@ class TradingApp(TestWrapper, TestClient):
         # ! [reqhistoricaldata]
         # queryTime = (datetime.datetime.today() -
         #              datetime.timedelta(days=180)).strftime("%Y%m%d %H:%M:%S")
-        queryTime = (datetime.datetime.today()-datetime.timedelta(days=4)).strftime("%Y%m%d %H:%M:%S")
+        #queryTime = (datetime.datetime.today()-datetime.timedelta(days=4)).strftime("%Y%m%d %H:%M:%S")
+        queryTime = end_dt.strftime("%Y%m%d %H:%M:%S")
         # String queryTime = DateTime.Now.AddMonths(-6).ToString("yyyyMMdd HH:mm:ss")
         # self.reqHistoricalData(4101, ContractSamples.USStockAtSmart(), queryTime,
         #                        "1 M", "1 day", "TRADES", 1, 1, [])
-        contract = ContractCreateMethods.create_US_stock_contract("AMD")
-        self.reqHistoricalData(4101, contract, queryTime,
-                               "1 Y", "1 month", "TRADES", 1, 1, [])
+        contract = ContractCreateMethods.create_US_stock_contract(symbol)
+        self.reqHistoricalData(reqId, contract, queryTime,
+                               "1 D", bar_size, what_to_do, 1, 1, [])
 
     def historicalDataRequests_cancel(self, reqId):
         # Canceling historical data requests
@@ -239,10 +250,17 @@ class TradingApp(TestWrapper, TestClient):
         super().historicalData(reqId, date, _open, high, low, close, volume,
                                barCount, WAP, hasGaps)
         print("reqId: ", reqId, "date: ", date, "volumn: ", volume)
+        first_time = self.historical_data_req_dict[reqId]["first_time"]
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         super().historicalDataEnd(reqId, start, end)
         print("HistoricalDataEnd ", reqId, "from", start, "to", end)
+        if self.req_count >= 60:
+            time.sleep(500)
+        new_dt = parse_datetime(start) - datetime.timedelta(minutes = 20)
+        self.historicalDataRequests_cancel(reqId)
+        time.sleep(2)
+        self.historicalDataRequests_req(new_dt)
 
 
 
@@ -384,7 +402,7 @@ class TradingApp(TestWrapper, TestClient):
                 if self.from_start == 1:
                     self.historicalDataRequests_from_start_req()
                 elif self.from_start == 0:
-                    self.historicalDataRequests_req()
+                    self.historicalDataRequests_req(datetime.datetime.today())
                 else:
                     print("wrong historical_data_req from_start value")
             elif self.is_req_head_stamp:

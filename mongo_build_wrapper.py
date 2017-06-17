@@ -2,64 +2,44 @@ import pymongo
 import pprint
 import datetime
 from bson.objectid import ObjectId
+from mongo_query_wrapper import *
+from general_util import *
 
-
-def mongo_insert_historical(req_id, query_dict, collection, date: str, _open: float, high: float,
+def mongo_insert_historical(collection, date: str, _open: float, high: float,
                    low: float, close: float, volume: int, barCount: int,
                    WAP: float, hasGaps: int):
 
-    total_list = date.split(" ")
-    yr = int(total_list[0][0:4])
-    mo = int(total_list[0][4:6])
-    dy = int(total_list[0][6:8])
-    # if the data is daily, monthly, yearly
-    if (len(total_list) == 1):
-        converted = datetime.datetime(yr,mo,dy)
+    converted = parse_datetime(date)
+    if datetime_exist(collection, converted) == False:
+        post = {
+                "date" : converted,
+                "open" : _open,
+                "high" : high,
+                "low" : low,
+                "close" : close,
+                "volume" : volume,
+                "count" : barCount,
+                "WAP" : WAP,
+                "hasGaps" : hasGaps
+        }
+        print("post -> ")
+        print(post)
+        collection.insert_one(post)
+        print("finished insert in collection")
     else:
-        time_list = total_list[2].split(":")
-        converted = datetime.datetime(yr,mo,dy,int(time_list[0]), int(time_list[1]), int(time_list[2]))
-    post = {
-            "date" : converted,
-            "open" : _open,
-            "high" : high,
-            "low" : low,
-            "close" : close,
-            "volume" : volume,
-            "count" : barCount,
-            "WAP" : WAP,
-            "hasGaps" : hasGaps
-    }
-    print("post -> ")
-    print(post)
-    collection.insert_one(post)
-    print("finished insert in collection")
+        print("Record Exists")
 
-def mongo_insert_historical(req_id, query_dict, collection, date: str, _open: float, high: float,
-                   low: float, close: float, volume: int, barCount: int,
-                   WAP: float, hasGaps: int):
+def mongo_insert_stk_historical_wrapper(db_client,req_id, query_dict,  date: str,
+                                        _open: float, high: float,
+                                       low: float, close: float, volume: int,
+                                       barCount: int,
+                                       WAP: float, hasGaps: int):
+    symbol = query_dict[req_id]["symbol"]
+    what_to_do = query_dict[req_id]["what_to_do"]
+    bar_size = query_dict[req_id]["bar_size"]
 
-    total_list = date.split(" ")
-    yr = int(total_list[0][0:4])
-    mo = int(total_list[0][4:6])
-    dy = int(total_list[0][6:8])
-    # if the data is daily, monthly, yearly
-    if (len(total_list == 1)):
-        converted = datetime.datetime(yr,mo,dy)
-    else:
-        time_list = total_list[2].split(":")
-        converted = datetime.datetime(yr,mo,dy,int(time_list[0]), int(time_list[1]), int(time_list[2]))
-    post = {
-            "date" : converted,
-            "open" : _open,
-            "high" : high,
-            "low" : low,
-            "close" : close,
-            "volume" : volume,
-            "count" : barCount,
-            "WAP" : WAP,
-            "hasGaps" : hasGaps
-    }
-    print("post -> ")
-    print(post)
-    collection.insert_one(post)
-    print("finished insert in collection")
+    db_name = "STK_" + symbol
+    collection_name = what_to_do + bar_size
+    collection = db_client[db_name][collection_name]
+    mongo_insert_historical(collection, date, _open, high, low,
+                            close, volume, barCount, WAP, hasGaps)
