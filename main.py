@@ -170,13 +170,13 @@ class TradingApp(TestWrapper, TestClient):
             # reqId:{"stock": stk, "what_to_do": wtd}
             self.time_stamp_req_dict = dict()
             self.stk_timestamp_list = ["AMD", "FB", "AAPL", "AMZN", "NVDA", "BABA", "WB"]
-            self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
+            self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
 
         elif(self.add_historical_data == 1):
             # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1}
             self.historical_data_req_dict = dict()
             self.stk_historical_list = ["AMD"]
-            self.what_to_do_list = Query_CST.STK_HISTORY_WHAT_TO_DO_LIST
+            self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
             self.from_start = 0
 
 
@@ -205,7 +205,9 @@ class TradingApp(TestWrapper, TestClient):
             self.startApi()
 
     # bar size: 5secs - 1 min
-    def historicalDataRequests_req_wrapper():
+    def historicalDataRequests_req_wrapper(self):
+        for reqId, query_dict in self.historical_data_req_dict.items():
+            self.historicalDataRequests_req(query_dict["end_dt"], reqId)
 
     def historicalDataRequests_req(self, end_dt, reqId):
         self.req_count += 1
@@ -213,7 +215,7 @@ class TradingApp(TestWrapper, TestClient):
         what_to_do = self.historical_data_req_dict[reqId]["what_to_do"]
         bar_size = self.historical_data_req_dict[reqId]["bar_size"]
         start_dt = self.historical_data_req_dict[reqId]["start_dt"]
-
+        step_size = bar_size_to_step_size(bar_size)
 
         head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, "AMD", "TRADES")
         if end_dt <= start_dt:
@@ -234,12 +236,9 @@ class TradingApp(TestWrapper, TestClient):
         #                        "1 M", "1 day", "TRADES", 1, 1, [])
         contract = ContractCreateMethods.create_US_stock_contract(symbol)
         self.reqHistoricalData(reqId, contract, queryTime,
-                               "1 D", bar_size, what_to_do, 1, 1, [])
+                               step_size, bar_size, what_to_do, 1, 1, [])
 
     def historicalDataRequests_cancel(self, reqId):
-        # Canceling historical data requests
-        self.cancelHistoricalData(reqId)
-    def historicalDataRequests_cancel_wrapper(self):
         # Canceling historical data requests
         self.cancelHistoricalData(reqId)
 
@@ -257,7 +256,7 @@ class TradingApp(TestWrapper, TestClient):
         print("HistoricalDataEnd ", reqId, "from", start, "to", end)
         if self.req_count >= 60:
             time.sleep(500)
-        new_dt = parse_datetime(start) - datetime.timedelta(minutes = 20)
+        new_dt = parse_datetime(start) - calc_timedelta(self.historical_data_req_dict[reqId]["bar_size"])
         self.historicalDataRequests_cancel(reqId)
         time.sleep(2)
         self.historicalDataRequests_req(new_dt)
@@ -307,7 +306,7 @@ class TradingApp(TestWrapper, TestClient):
               "Count:", count, "WAP:", wap,  "time", datetime.datetime.now())
 
     def headTimeStamp_req_wrapper(self):
-        ticket_start = Query_CST.HEAD_TIMESTAMP_1
+        ticket_start = QUERY_CST.HEAD_TIMESTAMP_1
         for stk in self.stk_timestamp_list:
             for wtd in self.what_to_do_list:
                 self.time_stamp_req_dict[ticket_start] = {"stock": stk, "what_to_do": wtd}
@@ -402,7 +401,7 @@ class TradingApp(TestWrapper, TestClient):
                 if self.from_start == 1:
                     self.historicalDataRequests_from_start_req()
                 elif self.from_start == 0:
-                    self.historicalDataRequests_req(datetime.datetime.today())
+                    self.historicalDataRequests_req_wrapper()
                 else:
                     print("wrong historical_data_req from_start value")
             elif self.is_req_head_stamp:

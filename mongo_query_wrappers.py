@@ -2,6 +2,7 @@ import pymongo
 import pprint
 import datetime
 from bson.objectid import ObjectId
+from constants import QUERY_CST
 
 INTERVAL_DICT = {
                     "S":[1, 5, 10, 15, 30],
@@ -89,12 +90,7 @@ def symbol_to_db_name(symbol: str):
     return "STK_" + symbol
 
 def req_barsize_to_db_barsize(req_barsize: str):
-    lst = req_barsize.split(" ")
-    # if no space in between:
-    if len(lst != 2):
-        print("Invalid entry for barsize")
-    else:
-        return lst[0] + lst[1]
+    return QUERY_CST.TO_DB_BAR_SIZE_DICT[req_barsize]
 
 
 def convert_collection_name(what_to_do: str, bar_size: str):

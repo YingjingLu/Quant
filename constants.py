@@ -1,3 +1,5 @@
+import datetime
+
 class UTIL_CST:
     NUM_TRADE_PRODUCT = 3
 
@@ -5,7 +7,7 @@ class STK_CST:
     BUY = 1
     SELL = -1
 
-class Query_CST:
+class QUERY_CST:
     STK_HISTORY_WHAT_TO_DO_LIST = [
                                "TRADES",
                                "MIDPOINT",
@@ -20,50 +22,71 @@ class Query_CST:
                                "ASK",
                                "BID_ASK",
                                }
-    STK_HISTORY_BAR_SIZE_SET = {
-                            "5 sec",
-                            "10 secs",
-                            "15 secs",
-                            "30 secs",
-                            "1 min",
-                            "2 mins",
-                            "3 mins",
-                            "5 mins",
-                            "10 mins",
-                            "15 mins",
-                            "20 mins",
-                            "30 mins",
-                            "1 hour",
-                            "2 hours",
-                            "3 hours",
-                            "4 hours",
-                            "8 hours",
-                            "1 day",
-                            "1 week",
-                            "1 month"
+    HISTORY_BAR_SIZE_DICT = {
+                            "5 sec": "1 hr",
+                            "10 secs" : "4 hrs",
+                            "15 secs": "4 hrs",
+                            "30 secs": "8 hrs",
+                            "1 min": "1 D",
+                            "2 mins": "2 D",
+                            "3 mins": "2 D",
+                            "5 mins": "2 D",
+                            "10 mins": "2 D",
+                            "15 mins": "2 D",
+                            "20 mins": "1 W",
+                            "30 mins": "1 W",
+                            "1 hour": "1 M",
+                            "2 hours": "1 M",
+                            "3 hours": "1 M",
+                            "4 hours": "1 M",
+                            "8 hours": "1 M",
+                            "1 day": "1 Y",
+                            "1 week": "1 Y",
+                            "1 month": "1 Y"
                             }
     TO_DB_BAR_SIZE_DICT = {
                             "5 sec": "5sec",
                             "10 secs": "10secs",
-                            "15secs",
-                            "30secs",
-                            "1min",
-                            "2mins",
-                            "3mins",
-                            "5mins",
-                            "10mins",
-                            "15mins",
-                            "20mins",
-                            "30mins",
-                            "1hour",
-                            "2hours",
-                            "3hours",
-                            "4hours",
-                            "8hours",
-                            "1day",
-                            "1week",
-                            "1month"
+                            "15 secs": "15secs",
+                            "30 secs": "30secs",
+                            "1 min": "1min",
+                            "2 mins": "2mins",
+                            "3 mins": "3mins",
+                            "5 mins": "5mins",
+                            "10 mins": "10mins",
+                            "15 mins": "15mins",
+                            "20 mins": "20mins",
+                            "30 mins": "30mins",
+                            "1 hour": "1hour",
+                            "2 hours": "2hours",
+                            "3 hours": "3hours",
+                            "4 hours": "4hours",
+                            "8 hours": "8hours",
+                            "1 day": "1day",
+                            "1 week": "1week",
+                            "1 month": "1month"
                            }
+    BAR_SIZE_TO_TIMEDELTA_DICT{
+                            "5 sec": datetime.timedelta(seconds = 5),
+                            "10 secs": datetime.timedelta(seconds = 10),
+                            "15 secs": datetime.timedelta(seconds = 15),
+                            "30 secs": datetime.timedelta(seconds = 30),
+                            "1 min": datetime.timedelta(minutes = 1),
+                            "2 mins": datetime.timedelta(minutes = 2),
+                            "3 mins": datetime.timedelta(minutes = 3),
+                            "5 mins": datetime.timedelta(minutes = 5),
+                            "10 mins": datetime.timedelta(minutes = 10),
+                            "15 mins": datetime.timedelta(minutes = 15),
+                            "20 mins": datetime.timedelta(minutes = 20),
+                            "30 mins": datetime.timedelta(minutes = 30),
+                            "1 hour": datetime.timedelta(hours = 1),
+                            "2 hours": datetime.timedelta(hours = 2),
+                            "3 hours": datetime.timedelta(hours = 3),
+                            "4 hours": datetime.timedelta(hours = 4),
+                            "8 hours": datetime.timedelta(hours = 8),
+                            "1 day": datetime.timedelta(days = 1),
+                            "1 week": datetime.timedelta(weeks = 1),
+    }
 
 
 

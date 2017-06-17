@@ -1,4 +1,5 @@
 import datetime
+from constants import *
 
 def parse_datetime(dt):
     total_list = dt.split(" ")
@@ -34,3 +35,12 @@ def decr_weekday(weekday):
     else:
         weekday -= 1
         return weekday
+
+def calc_timedelta(bar_size: str):
+    if bar_size == "1 month":
+        print("No timedelta for 1 month")
+        return
+    return QUERY_CST.BAR_SIZE_TO_TIMEDELTA_DICT[bar_size]
+
+def bar_size_to_step_size(bar_size: str):
+    return QUERY_CST.HISTORY_BAR_SIZE_DICT[bar_size]
