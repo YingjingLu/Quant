@@ -98,17 +98,17 @@ def convert_collection_name(what_to_do: str, bar_size: str):
 
 
 def get_stk_headtimestamp(db, symbol, what_to_do):
-    result = db[symbol].find_one()
+    result = db[symbol].find_one({"what_to_do": what_to_do})
     if result == None:
         print("No timestamp for this stock symbol: %s, what_to_do %s" % (symbol, what_to_do))
         return None
     pprint.pprint(result)
-    return result[what_to_do]
+    return result["datetime"]
 
 def datetime_exist(collection, dt):
-    if  collection.find_one({"date": dt}) == None or collection.find_one({"date": dt}) == dict():
+    if  collection.find({"datetime": dt}).count() == 0:
         return False
     return True
 
 def most_current_datetime(collection):
-    return collection.find().sort({"date" : pymongo.DESCENDING}).limit(1)["date"]
+    return collection.find().sort({"datetime" : pymongo.DESCENDING}).limit(1)["datetime"]

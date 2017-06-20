@@ -2,7 +2,7 @@ import pymongo
 import pprint
 import datetime
 from bson.objectid import ObjectId
-from mongo_query_wrapper import *
+from mongo_query_wrappers import *
 from general_util import *
 
 def mongo_insert_historical(collection, date: str, _open: float, high: float,
@@ -22,10 +22,9 @@ def mongo_insert_historical(collection, date: str, _open: float, high: float,
                 "WAP" : WAP,
                 "hasGaps" : hasGaps
         }
-        print("post -> ")
-        print(post)
+        print(">>> Post: ", end = "")
+        pprint.pprint(post)
         collection.insert_one(post)
-        print("finished insert in collection")
     else:
         print("Record Exists")
 

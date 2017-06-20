@@ -65,7 +65,7 @@ class QUERY_CST:
                             "1 week": "1week",
                             "1 month": "1month"
                            }
-    BAR_SIZE_TO_TIMEDELTA_DICT{
+    BAR_SIZE_TO_TIMEDELTA_DICT = {
                             "5 sec": datetime.timedelta(seconds = 5),
                             "10 secs": datetime.timedelta(seconds = 10),
                             "15 secs": datetime.timedelta(seconds = 15),

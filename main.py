@@ -13,6 +13,7 @@ import datetime
 import collections
 import inspect
 import threading
+import pprint
 
 import logging
 import time
@@ -55,6 +56,7 @@ from FaAllocationSamples import FaAllocationSamples
 from trading_contracts import ContractCreateMethods
 from constants import *
 from mongo_query_wrappers import *
+from mongo_build_wrapper import *
 
 ############## End Importing Custom files ################
 
@@ -163,6 +165,7 @@ class TradingApp(TestWrapper, TestClient):
         self.add_historical_data = 1
         self.query_dict = {}
         self.is_req_head_stamp = 0
+        self.is_req_realtime_mktdepth = 0
 
     ###############      End togglers ############################
         self.db_client = MongoClient()
@@ -180,8 +183,8 @@ class TradingApp(TestWrapper, TestClient):
             self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
             self.from_start = 0
 
-        self.sem = threading.BoundedSemaphore(1)
         self.req_count = 0
+        self.line_count = 0
 
     def dumpTestCoverageSituation(self):
         for clntMeth in sorted(self.clntMeth2callCount.keys()):
@@ -222,8 +225,15 @@ class TradingApp(TestWrapper, TestClient):
                                                         "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]
                                                         }
                 reqId += 1
+        for _id in self.historical_data_req_dict.keys():
+            print(_id)
+            pprint.pprint(self.historical_data_req_dict[_id])
         for reqId, query_dict in self.historical_data_req_dict.items():
             self.historicalDataRequests_req(query_dict["end_dt"], reqId)
+            time.sleep(0.4)
+            if self.req_count >= 50:
+                time.sleep(60)
+
 
     def historicalDataRequests_req(self, end_dt, reqId):
         start_dt = self.historical_data_req_dict[reqId]["start_dt"]
@@ -231,9 +241,13 @@ class TradingApp(TestWrapper, TestClient):
             print("Completed Historical Req: ", self.historical_data_req_dict[reqId])
             del self.historical_data_req_dict[reqId]
             return
-        self.sem.acquire()
-        print("locked")
+        if self.req_count >= 59:
+            print(">>> 60 Req, wait")
+            time.sleep(600)
+            print(">>> Finish Waiting")
+            self.req_count = 0
         self.req_count += 1
+        print(">>> Req Count: ", self.req_count)
         symbol = self.historical_data_req_dict[reqId]["symbol"]
         what_to_do = self.historical_data_req_dict[reqId]["what_to_do"]
         bar_size = self.historical_data_req_dict[reqId]["bar_size"]
@@ -260,8 +274,6 @@ class TradingApp(TestWrapper, TestClient):
         contract = ContractCreateMethods.create_US_stock_contract(symbol)
         self.reqHistoricalData(reqId, contract, queryTime,
                                step_size, bar_size, what_to_do, 1, 1, [])
-        print("released")
-        self.sem.release()
     def historicalDataRequests_cancel(self, reqId):
         # Canceling historical data requests
         self.cancelHistoricalData(reqId)
@@ -272,13 +284,7 @@ class TradingApp(TestWrapper, TestClient):
                        WAP: float, hasGaps: int):
         super().historicalData(reqId, date, _open, high, low, close, volume,
                                barCount, WAP, hasGaps)
-        print("reqId: ", reqId, "date: ", date, "volumn: ", volume)
-        if self.historical_data_req_dict[reqId]["first_time"] == 1:
-            self.historical_data_req_dict[reqId]["collection"].create_index([
-                                                                            "datetime", pymongo.DESCENDING
-                                                                             ],
-                                                                             unique = True)
-            self.historical_data_req_dict[reqId]["first_time"] = 0
+
         mongo_insert_historical(self.historical_data_req_dict[reqId]["collection"],
                                 date,
                                 _open,
@@ -289,21 +295,21 @@ class TradingApp(TestWrapper, TestClient):
                                 barCount,
                                 WAP,
                                 hasGaps)
+        if self.historical_data_req_dict[reqId]["first_time"] == 1:
+            self.historical_data_req_dict[reqId]["collection"].create_index([("datetime", pymongo.DESCENDING)],unique = True)
+            self.historical_data_req_dict[reqId]["first_time"] = 0
+        self.line_count += 1
+        print(">>> Line Count: ", self.line_count)
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         super().historicalDataEnd(reqId, start, end)
         print("HistoricalDataEnd ", reqId, "from", start, "to", end)
-        self.sem.acquire()
-        print("locked")
-        if self.req_count >= 50:
-            time.sleep(400)
-            self.req_count = 0
+        print(">>> self.req_count: ", self.req_count)
+
         new_dt = parse_datetime(start) - calc_timedelta(self.historical_data_req_dict[reqId]["bar_size"])
         self.historicalDataRequests_cancel(reqId)
-        print("released")
-        self.sem.release()
         time.sleep(2)
-        self.historicalDataRequests_req(new_dt)
+        self.historicalDataRequests_req(new_dt, reqId)
 
 
 
@@ -330,6 +336,8 @@ class TradingApp(TestWrapper, TestClient):
                                  price, size)
         print("UpdateMarketDepthL2. ", reqId, "Position:", position, "Operation:",
               operation, "Side:", side, "Price:", price, "Size", size,  "time", datetime.datetime.now())
+        self.line_count += 1
+        print(">>> line count :", self.line_count)
 
     def marketDepthOperations_cancel(self):
         # Canceling the Deep Book request
@@ -348,6 +356,8 @@ class TradingApp(TestWrapper, TestClient):
         print("RealTimeBars. ", reqId, "Time:", time, "Open:", open,
               "High:", high, "Low:", low, "Close:", close, "Volume:", volume,
               "Count:", count, "WAP:", wap,  "time", datetime.datetime.now())
+        self.line_count += 1
+        print(">>> line count :", self.line_count)
 
     def headTimeStamp_req_wrapper(self):
         ticket_start = QUERY_CST.HEAD_TIMESTAMP_1
@@ -366,7 +376,7 @@ class TradingApp(TestWrapper, TestClient):
         self.reqHeadTimeStamp(tick_id, contract, what_to_do, 0, 1)
 
     def headTimestamp(self, reqId:int, headTimestamp:str):
-        post = {self.time_stamp_req_dict[reqId]["what_to_do"]: parse_datetime(headTimestamp)}
+        post = {"what_to_do": self.time_stamp_req_dict[reqId]["what_to_do"], "datetime": parse_datetime(headTimestamp)}
         print("post: ", post)
         self.db[self.time_stamp_req_dict[reqId]["stock"]].insert_one(post)
         print("------ Canceled --------")
@@ -445,7 +455,7 @@ class TradingApp(TestWrapper, TestClient):
                 if self.from_start == 1:
                     self.historicalDataRequests_from_start_req()
                 elif self.from_start == 0:
-                    self.historicalDataRequests_req_wrapper("APPL")
+                    self.historicalDataRequests_req_wrapper("AAPL")
                 else:
                     print("wrong historical_data_req from_start value")
             elif self.is_req_head_stamp:
