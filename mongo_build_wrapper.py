@@ -5,7 +5,7 @@ from bson.objectid import ObjectId
 from mongo_query_wrappers import *
 from general_util import *
 
-def mongo_insert_historical(collection, date: str, _open: float, high: float,
+def mongo_insert_historical(collection, req_dict,  date: str, _open: float, high: float,
                    low: float, close: float, volume: int, barCount: int,
                    WAP: float, hasGaps: int):
 
@@ -22,11 +22,19 @@ def mongo_insert_historical(collection, date: str, _open: float, high: float,
                 "WAP" : WAP,
                 "hasGaps" : hasGaps
         }
-        print(">>> Post: ", end = "")
-        pprint.pprint(post)
+        # print(">>> Post: ", end = "")
+        # pprint.pprint(post)
         collection.insert_one(post)
+        if req_dict["start_toggle"] == True:
+            req_dict["last_start"] = converted
+            req_dict["start_toggle"] = False
+        return True
     else:
-        print("Record Exists")
+        if req_dict["start_toggle"] == True:
+            req_dict["last_start"] = converted
+            req_dict["start_toggle"] = False
+        #print("Record Exists")
+        return False
 
 def mongo_insert_stk_historical_wrapper(db_client,req_id, query_dict,  date: str,
                                         _open: float, high: float,

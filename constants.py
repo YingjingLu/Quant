@@ -9,11 +9,11 @@ class STK_CST:
 
 class QUERY_CST:
     STK_HISTORY_WHAT_TO_DO_LIST = [
-                               "TRADES",
-                               "MIDPOINT",
-                               "BID",
-                               "ASK",
-                               "BID_ASK",
+                               "TRADES"
+                            #    "MIDPOINT",
+                            #    "BID",
+                            #    "ASK",
+                            #    "BID_ASK",
                                ]
     STK_HISTORY_WHAT_TO_DO_SET = {
                                "TRADES",
@@ -23,28 +23,28 @@ class QUERY_CST:
                                "BID_ASK",
                                }
     HISTORY_BAR_SIZE_DICT = {
-                            "5 sec": "1 hr",
-                            "10 secs" : "4 hrs",
-                            "15 secs": "4 hrs",
-                            "30 secs": "8 hrs",
-                            "1 min": "1 D",
-                            "2 mins": "2 D",
-                            "3 mins": "2 D",
-                            "5 mins": "2 D",
-                            "10 mins": "2 D",
-                            "15 mins": "2 D",
-                            "20 mins": "1 W",
-                            "30 mins": "1 W",
-                            "1 hour": "1 M",
-                            "2 hours": "1 M",
-                            "3 hours": "1 M",
-                            "4 hours": "1 M",
-                            "8 hours": "1 M",
-                            "1 day": "1 Y",
-                            "1 week": "1 Y",
+                            "5 secs": "3600 S"
+                            # "10 secs" : "14400 S",
+                            # "15 secs": "14400 S",
+                            # "30 secs": "28800 S",
+                            # "1 min": "1 D",
+                            # "2 mins": "2 D",
+                            # "3 mins": "2 D",
+                            # "5 mins": "2 D",
+                            # "10 mins": "2 D",
+                            # "15 mins": "2 D",
+                            # "20 mins": "1 W",
+                            # "30 mins": "1 W",
+                            # "1 hour": "1 M",
+                            # "2 hours": "1 M",
+                            # "3 hours": "1 M",
+                            # "4 hours": "1 M",
+                            # "8 hours": "1 M",
+                            # "1 day": "1 Y",
+                            # "1 week": "1 Y",
                             }
     TO_DB_BAR_SIZE_DICT = {
-                            "5 sec": "5sec",
+                            "5 secs": "5secs",
                             "10 secs": "10secs",
                             "15 secs": "15secs",
                             "30 secs": "30secs",
@@ -66,7 +66,7 @@ class QUERY_CST:
                             "1 month": "1month"
                            }
     BAR_SIZE_TO_TIMEDELTA_DICT = {
-                            "5 sec": datetime.timedelta(seconds = 5),
+                            "5 secs": datetime.timedelta(seconds = 5),
                             "10 secs": datetime.timedelta(seconds = 10),
                             "15 secs": datetime.timedelta(seconds = 15),
                             "30 secs": datetime.timedelta(seconds = 30),

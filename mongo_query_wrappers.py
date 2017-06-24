@@ -111,4 +111,9 @@ def datetime_exist(collection, dt):
     return True
 
 def most_current_datetime(collection):
-    return collection.find().sort({"datetime" : pymongo.DESCENDING}).limit(1)["datetime"]
+    return collection.find().sort("datetime", pymongo.DESCENDING).limit(1)["datetime"]
+
+def earlest_datetime(collection):
+    _iter = collection.find().sort("datetime", pymongo.ASCENDING).limit(1)
+    for obj in _iter:
+        return obj["datetime"]

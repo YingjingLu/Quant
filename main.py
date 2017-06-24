@@ -163,6 +163,7 @@ class TradingApp(TestWrapper, TestClient):
 
     ##################### Togglers ###################################
         self.add_historical_data = 1
+        self.from_start = 1
         self.query_dict = {}
         self.is_req_head_stamp = 0
         self.is_req_realtime_mktdepth = 0
@@ -179,12 +180,16 @@ class TradingApp(TestWrapper, TestClient):
         elif(self.add_historical_data == 1):
             # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1, "db":db, "collection": collection}
             self.historical_data_req_dict = dict()
-            self.stk_historical_list = ["AMD"]
+            #
+            self.stk_historical_list = [{"symbol": "AMD", "end_dt": datetime.datetime(2017, 2, 8, 10, 43, 35), "first_time": 0},
+                                        {"symbol": "BABA", "end_dt": datetime.datetime(2017, 1, 4, 10, 43, 35), "first_time":0},
+                                        {"symbol": "NVDA", "end_dt": datetime.datetime(2016, 12, 28, 14, 0, 0), "first_time":0}]
             self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
-            self.from_start = 0
+
 
         self.req_count = 0
         self.line_count = 0
+        self.log_file = open("log.txt", "a")
 
     def dumpTestCoverageSituation(self):
         for clntMeth in sorted(self.clntMeth2callCount.keys()):
@@ -209,30 +214,71 @@ class TradingApp(TestWrapper, TestClient):
             self.startApi()
 
     # bar size: 5secs - 1 min
-    def historicalDataRequests_req_wrapper(self, symbol):
+    def historicalDataRequests_req_wrapper(self):
         reqId = QUERY_CST.HISTORY_REQ_1
-        for what_to_do in QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST:
-            head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, symbol, what_to_do)
-            for bar_size in QUERY_CST.HISTORY_BAR_SIZE_DICT.keys():
-                self.historical_data_req_dict[reqId] = {
-                                                        "symbol": symbol,
-                                                        "what_to_do": what_to_do,
-                                                        "bar_size": bar_size,
-                                                        "start_dt":head_timestamp,
-                                                        "end_dt": datetime.datetime.today(),
-                                                        "first_time": 1,
-                                                        "db": self.db_client[symbol_to_db_name(symbol)],
-                                                        "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]
-                                                        }
-                reqId += 1
+        print(">> entern regular request")
+        for item_dict in self.stk_historical_list:
+            symbol = item_dict["symbol"]
+            end_dt = item_dict["end_dt"]
+            first_time = item_dict["first_time"]
+            if end_dt == None:
+                end_dt = datetime.datetime.today()
+            for what_to_do in QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST:
+                head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, symbol, what_to_do)
+                for bar_size in QUERY_CST.HISTORY_BAR_SIZE_DICT.keys():
+                    self.historical_data_req_dict[reqId] = {
+                                                            "symbol": symbol,
+                                                            "what_to_do": what_to_do,
+                                                            "bar_size": bar_size,
+                                                            "start_dt":head_timestamp,
+                                                            "end_dt": end_dt,
+                                                            "first_time": first_time,
+                                                            "db": self.db_client[symbol_to_db_name(symbol)],
+                                                            "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)],
+                                                            "last_start":  datetime.datetime.today(),
+                                                            "start_toggle": True
+                                                            }
+                    reqId += 1
         for _id in self.historical_data_req_dict.keys():
             print(_id)
             pprint.pprint(self.historical_data_req_dict[_id])
         for reqId, query_dict in self.historical_data_req_dict.items():
             self.historicalDataRequests_req(query_dict["end_dt"], reqId)
             time.sleep(0.4)
-            if self.req_count >= 50:
-                time.sleep(60)
+            if self.req_count >= 59:
+                time.sleep(600)
+
+    def historicalDataRequests_continue_req_wrapper(self):
+        reqId = QUERY_CST.HISTORY_REQ_1
+        print(">>> Enter continue")
+        for item_dict in self.stk_historical_list:
+            symbol = item_dict["symbol"]
+            first_time = 0
+            for what_to_do in QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST:
+                head_timestamp = get_stk_headtimestamp(self.db_client.head_timestamp, symbol, what_to_do)
+                for bar_size in QUERY_CST.HISTORY_BAR_SIZE_DICT.keys():
+                    end_dt = earlest_datetime(self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)])
+                    self.historical_data_req_dict[reqId] = {
+                                                            "symbol": symbol,
+                                                            "what_to_do": what_to_do,
+                                                            "bar_size": bar_size,
+                                                            "start_dt":head_timestamp,
+                                                            "end_dt": end_dt,
+                                                            "first_time": first_time,
+                                                            "db": self.db_client[symbol_to_db_name(symbol)],
+                                                            "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)],
+                                                            "last_start":  datetime.datetime.today(),
+                                                            "start_toggle": True
+                                                            }
+                    reqId += 1
+        for _id in self.historical_data_req_dict.keys():
+            print(_id)
+            pprint.pprint(self.historical_data_req_dict[_id])
+        for reqId, query_dict in self.historical_data_req_dict.items():
+            self.historicalDataRequests_req(query_dict["end_dt"], reqId)
+            time.sleep(0.4)
+            if self.req_count >= 59:
+                time.sleep(600)
 
 
     def historicalDataRequests_req(self, end_dt, reqId):
@@ -243,18 +289,15 @@ class TradingApp(TestWrapper, TestClient):
             return
         if self.req_count >= 59:
             print(">>> 60 Req, wait")
-            time.sleep(600)
+            time.sleep(482)
             print(">>> Finish Waiting")
             self.req_count = 0
         self.req_count += 1
-        print(">>> Req Count: ", self.req_count)
+
         symbol = self.historical_data_req_dict[reqId]["symbol"]
         what_to_do = self.historical_data_req_dict[reqId]["what_to_do"]
         bar_size = self.historical_data_req_dict[reqId]["bar_size"]
-
         step_size = bar_size_to_step_size(bar_size)
-
-
         if end_dt <= start_dt:
             print("Completed Historical Req: ", self.historical_data_req_dict[reqId])
             del self.historical_data_req_dict[reqId]
@@ -274,6 +317,7 @@ class TradingApp(TestWrapper, TestClient):
         contract = ContractCreateMethods.create_US_stock_contract(symbol)
         self.reqHistoricalData(reqId, contract, queryTime,
                                step_size, bar_size, what_to_do, 1, 1, [])
+        print(">>> Req Count: ", self.req_count, " Req Sent")
     def historicalDataRequests_cancel(self, reqId):
         # Canceling historical data requests
         self.cancelHistoricalData(reqId)
@@ -285,7 +329,8 @@ class TradingApp(TestWrapper, TestClient):
         super().historicalData(reqId, date, _open, high, low, close, volume,
                                barCount, WAP, hasGaps)
 
-        mongo_insert_historical(self.historical_data_req_dict[reqId]["collection"],
+        if mongo_insert_historical(self.historical_data_req_dict[reqId]["collection"],
+                                self.historical_data_req_dict[reqId],
                                 date,
                                 _open,
                                 high,
@@ -294,21 +339,29 @@ class TradingApp(TestWrapper, TestClient):
                                 volume,
                                 barCount,
                                 WAP,
-                                hasGaps)
+                                hasGaps):
+
+            self.line_count += 1
         if self.historical_data_req_dict[reqId]["first_time"] == 1:
             self.historical_data_req_dict[reqId]["collection"].create_index([("datetime", pymongo.DESCENDING)],unique = True)
             self.historical_data_req_dict[reqId]["first_time"] = 0
-        self.line_count += 1
-        print(">>> Line Count: ", self.line_count)
+
 
     def historicalDataEnd(self, reqId: int, start: str, end: str):
         super().historicalDataEnd(reqId, start, end)
         print("HistoricalDataEnd ", reqId, "from", start, "to", end)
         print(">>> self.req_count: ", self.req_count)
 
-        new_dt = parse_datetime(start) - calc_timedelta(self.historical_data_req_dict[reqId]["bar_size"])
+        new_dt = self.historical_data_req_dict[reqId]["last_start"]
+        self.historical_data_req_dict[reqId]["start_toggle"] = True
         self.historicalDataRequests_cancel(reqId)
+        if self.line_count == 720:
+            self.log_file.write("Success: "+ self.historical_data_req_dict[reqId]["symbol"] + "from " + start + "to " + end+ "\n")
+        else:
+            self.log_file.write("Fail: "+ self.historical_data_req_dict[reqId]["symbol"] + "from " + start + "to " + end+ "\n")
+        print(">>> Line Count: ", self.line_count)
         time.sleep(2)
+        self.line_count = 0
         self.historicalDataRequests_req(new_dt, reqId)
 
 
@@ -453,9 +506,9 @@ class TradingApp(TestWrapper, TestClient):
             self.reqGlobalCancel()
             if self.add_historical_data:
                 if self.from_start == 1:
-                    self.historicalDataRequests_from_start_req()
+                    self.historicalDataRequests_req_wrapper()
                 elif self.from_start == 0:
-                    self.historicalDataRequests_req_wrapper("AAPL")
+                    self.historicalDataRequests_continue_req_wrapper()
                 else:
                     print("wrong historical_data_req from_start value")
             elif self.is_req_head_stamp:
@@ -468,7 +521,7 @@ class TradingApp(TestWrapper, TestClient):
 
     def stop(self):
         if self.add_historical_data:
-            self.historicalDataRequests_cancel_wrapper()
+            pass
         #self.tickDataOperations_cancel()
         else:
 
@@ -481,10 +534,6 @@ class TradingApp(TestWrapper, TestClient):
         oid = self.nextValidOrderId
         self.nextValidOrderId += 1
         return oid
-
-
-
-
 
 def main():
     app = TradingApp()
