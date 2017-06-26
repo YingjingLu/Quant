@@ -65,6 +65,26 @@ class QUERY_CST:
                             "1 week": "1week",
                             "1 month": "1month"
                            }
+    DB_AVAILABLE_BAR_SIZE_LIST = [
+                            "5 secs",
+                            "10 secs",
+                            "15 secs",
+                            "30 secs",
+                            "1 min",
+                            "2 mins",
+                            "3 mins",
+                            "5 mins",
+                            "10 mins",
+                            "15 mins",
+                            "20 mins",
+                            "30 mins",
+                            "1 hour",
+                            "2 hours",
+                            "4 hours",
+                            "8 hours",
+                            "1 day"
+
+    ]
     BAR_SIZE_TO_TIMEDELTA_DICT = {
                             "5 secs": datetime.timedelta(seconds = 5),
                             "10 secs": datetime.timedelta(seconds = 10),
@@ -90,7 +110,7 @@ class QUERY_CST:
 
 
 
-    HISTORY_REQ_1 = 4001
+    HISTORY_REQ_1 = 4004
 
     HEAD_TIMESTAMP_1 = 14001
 class QUERY_HISTORY:

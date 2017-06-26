@@ -111,9 +111,25 @@ def datetime_exist(collection, dt):
     return True
 
 def most_current_datetime(collection):
-    return collection.find().sort("datetime", pymongo.DESCENDING).limit(1)["datetime"]
+    return list(collection.find().sort("datetime", pymongo.DESCENDING).limit(1))[0]["datetime"]
 
 def earlest_datetime(collection):
     _iter = collection.find().sort("datetime", pymongo.ASCENDING).limit(1)
     for obj in _iter:
         return obj["datetime"]
+
+def is_STK_full_day(collection, bar_size, dt):
+    ask_year = dt.year
+    ask_month = dt.month
+    ask_day = dt.day
+
+    gte = datetime.datetime(ask_year, ask_month, ask_day, 0, 0, 0)
+    lt = datetime.datetime(ask_year, ask_month, ask_day, 23, 59, 59)
+
+    dt_end = list(collection.find({"datetime": {"$gte": gte, "$lt": lt}}).sort("datetime", pymongo.DESCENDING).limit(1))[0]["datetime"]
+    dt_start = list(collection.find({"datetime": {"$gte": gte, "$lt": lt}}).sort("datetime", pymongo.ASCENDING).limit(1))[0]["datetime"]
+
+    ver_start_dt = datetime.datetime(ask_year, ask_month, ask_day, 9, 30, 0)
+    ver_end_dt = datetime.datetime(ask_year, ask_month, ask_day, 16, 0, 0) - QUERY_CST.BAR_SIZE_TO_TIMEDELTA_DICT[bar_size]
+
+    return (dt_end == ver_end_dt) and (dt_start == ver_start_dt)

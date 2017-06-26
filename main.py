@@ -181,9 +181,10 @@ class TradingApp(TestWrapper, TestClient):
             # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1, "db":db, "collection": collection}
             self.historical_data_req_dict = dict()
             #
-            self.stk_historical_list = [{"symbol": "AMD", "end_dt": datetime.datetime(2017, 2, 8, 10, 43, 35), "first_time": 0},
-                                        {"symbol": "BABA", "end_dt": datetime.datetime(2017, 1, 4, 10, 43, 35), "first_time":0},
-                                        {"symbol": "NVDA", "end_dt": datetime.datetime(2016, 12, 28, 14, 0, 0), "first_time":0}]
+            self.stk_historical_list = [{"symbol": "AMD", "end_dt": datetime.datetime(2016, 9, 27, 10, 43, 35), "first_time": 0}
+                                        # {"symbol": "BABA", "end_dt": datetime.datetime(2016, 12, 16, 11, 13, 35), "first_time":0},
+                                        # {"symbol": "NVDA", "end_dt": datetime.datetime(2016, 12, 13, 9, 0, 0), "first_time":0}
+                                        ]
             self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
 
 
