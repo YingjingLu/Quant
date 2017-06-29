@@ -44,3 +44,28 @@ def calc_timedelta(bar_size: str):
 
 def bar_size_to_step_size(bar_size: str):
     return QUERY_CST.HISTORY_BAR_SIZE_DICT[bar_size]
+
+def STK_next_trade_day(dt):
+    d = dt.weekday()
+    year = dt.year()
+    month = dt.month()
+    day = dt.day()
+    out = datetime.datetime(year, month, day, 9, 30, 0)
+    if d == 4:
+        return out + datetime.timedelta(days = 3)
+    else if d == 5:
+        return out + datetime.timedelta(days = 2)
+    else :
+        return out + datetime.timedelta(days = 1)
+
+
+
+def is_in_STK_Trading_hour(dt):
+    d = dt.weekday()
+    year = dt.year()
+    month = dt.month()
+    day = dt.day()
+    start = datetime.datetime(year, month, day, 9, 30, 0)
+    end = datetime.datetime(year, month, day, 16, 0, 0)
+
+    return start <= dt < end

@@ -78,10 +78,6 @@ class QUERY_CST:
                             "15 mins",
                             "20 mins",
                             "30 mins",
-                            "1 hour",
-                            "2 hours",
-                            "4 hours",
-                            "8 hours",
                             "1 day"
 
     ]

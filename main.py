@@ -163,7 +163,8 @@ class TradingApp(TestWrapper, TestClient):
 
     ##################### Togglers ###################################
         self.add_historical_data = 1
-        self.from_start = 1
+        self.from_start = 0
+        self.populate_rest_TRADES = 0
         self.query_dict = {}
         self.is_req_head_stamp = 0
         self.is_req_realtime_mktdepth = 0
@@ -181,9 +182,9 @@ class TradingApp(TestWrapper, TestClient):
             # reqId:{"symbol": symbol, "what_to_do": wtd, "bar_size": bar_size, "start_dt":start_dt, "end_dt": end_dt, "first_time": 0/1, "db":db, "collection": collection}
             self.historical_data_req_dict = dict()
             #
-            self.stk_historical_list = [{"symbol": "AMD", "end_dt": datetime.datetime(2016, 9, 27, 10, 43, 35), "first_time": 0}
-                                        # {"symbol": "BABA", "end_dt": datetime.datetime(2016, 12, 16, 11, 13, 35), "first_time":0},
-                                        # {"symbol": "NVDA", "end_dt": datetime.datetime(2016, 12, 13, 9, 0, 0), "first_time":0}
+            self.stk_historical_list = [{"symbol": "AMD", "end_dt": datetime.datetime(2016, 9, 27, 10, 43, 35), "first_time": 0},
+                                        {"symbol": "BABA", "end_dt": datetime.datetime(2016, 12, 16, 11, 13, 35), "first_time":0},
+                                        {"symbol": "NVDA", "end_dt": datetime.datetime(2016, 12, 13, 9, 0, 0), "first_time":0}
                                         ]
             self.what_to_do_list = QUERY_CST.STK_HISTORY_WHAT_TO_DO_LIST
 
@@ -365,6 +366,9 @@ class TradingApp(TestWrapper, TestClient):
         self.line_count = 0
         self.historicalDataRequests_req(new_dt, reqId)
 
+    def populate_stk_trades_in_list():
+        for stk_symbol in populate_stk_list:
+            mp.Process(target = conclude_interval_TRADES_wrapper, args = (self.db_client, stk_symbol, self.log_file)).start()
 
 
     #>>>>>>>>>>>>>>>>>>>>>> NKT Data L2
@@ -511,7 +515,8 @@ class TradingApp(TestWrapper, TestClient):
                 elif self.from_start == 0:
                     self.historicalDataRequests_continue_req_wrapper()
                 else:
-                    print("wrong historical_data_req from_start value")
+                    if self.populate_rest_TRADES == 1:
+                        self.populate_stk_trades_in_list()
             elif self.is_req_head_stamp:
                 self.headTimeStamp_req_wrapper()
             else:
@@ -528,6 +533,7 @@ class TradingApp(TestWrapper, TestClient):
 
             self.realTimeBars_cancel()
             self.marketDepthOperations_cancel()
+        self.log_file.close()
         self.db_client.close()
         print("executing cancel finished")
 

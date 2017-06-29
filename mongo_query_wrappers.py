@@ -133,3 +133,42 @@ def is_STK_full_day(collection, bar_size, dt):
     ver_end_dt = datetime.datetime(ask_year, ask_month, ask_day, 16, 0, 0) - QUERY_CST.BAR_SIZE_TO_TIMEDELTA_DICT[bar_size]
 
     return (dt_end == ver_end_dt) and (dt_start == ver_start_dt)
+
+def find_whole_start_dt(collection, bar_size):
+    time_delta = QUERY_CST.BAR_SIZE_TO_TIMEDELTA_DICT[bar_size]
+
+    start_dt = earlest_datetime(collection)
+    ask_year = start_dt.year
+    ask_month = start_dt.month
+    ask_day = start_dt.day
+
+    gte = datetime.datetime(ask_year, ask_month, ask_day, 9, 30, 0)
+    lt = datetime.datetime(ask_year, ask_month, ask_day, 16, 0, 0)
+
+    query = collection.find_one({"datetime": gte})
+    while (query == None):
+        gte = gte + time_delta
+        query = collection.find_one({"datetime": gte})
+
+    return query["datetime"]
+
+def find_whole_end_dt(collection, collection_bar_size, ask_bar_size):
+    ask_time_delta = QUERY_CST.BAR_SIZE_TO_TIMEDELTA_DICT[ask_bar_size]
+    collection_time_delta = QUERY_CST.BAR_SIZE_TO_TIMEDELTA_DICT[collection_bar_size]
+
+    start_dt = most_current_datetime(collection)
+    ask_year = start_dt.year
+    ask_month = start_dt.month
+    ask_day = start_dt.day
+
+    gte = datetime.datetime(ask_year, ask_month, ask_day, 9, 30, 0)
+    lt = datetime.datetime(ask_year, ask_month, ask_day, 16, 0, 0)
+
+    query = collection.find_one({"datetime": lt})
+    while (query == None):
+        lt = lt - ask_time_delta
+        query = collection.find_one({"datetime": lt})
+
+    if (start_dt + collection_time_delta - ask_time_delta == query["datetime"]):
+        return start_dt + collection_time_delta
+    return query["datetime"]
