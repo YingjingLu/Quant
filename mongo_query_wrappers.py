@@ -3,14 +3,7 @@ import pprint
 import datetime
 from bson.objectid import ObjectId
 from constants import QUERY_CST
-
-INTERVAL_DICT = {
-                    "S":[1, 5, 10, 15, 30],
-                    "M":[1, 3, 5, 10, 20, 30],
-                    "H":[1, 3],
-                    "D":[1],
-                    "MO":[1]
-                }
+from general_util import *
 
 # mvoing averages
 """
@@ -24,78 +17,19 @@ field: P:price, V:volume
 def raise_local_error(msg, func_name):
     print("Error: " + msg + "in func" + func_name + "@ mongo_query_wrappers")
 
+def STK_bar_num_inclusive(db_client, start_dt, end_dt, symbol, bar_size):
+    if(start_dt >= end_dt):
+        print("Request Interval is invalid")
+        return {"has_gap_count": 0, "bar_num": 0}
+    db_name = symbol_to_db_name(symbol)
+    collection_name = req_barsize_to_db_barsize(bar_size)
+    query = db_client[db_name][collection_name].find(collection.find({"datetime": {"$gte": start_dt, "$lte": end_dt}}))
+    has_gap_count = 0
+    for q in query:
+        if q["hasGaps"]:
+            has_gap_count += 1
 
-
-def get_MA_collection(db, interval, unit, what_to_do, field):
-
-
-    return None
-
-def rt_MA(collection, interval, unit, field):
-    pass
-
-def MA(collection, interval, unit, field):
-    collection_name = what_to_do + "_"
-    is_builtin_interval = False
-    total = 0
-    key = ""
-    bar_count = 0
-    # if the interval request is builtin in databse
-    if (interval in INTERVAL_DICT[unit]):
-        collection_name += str(interval)
-        is_builtin_interval = True
-
-    # if it is not a built in interval in the collection,
-    # find th best fit interval range
-    else:
-        pass
-
-
-    if unit == "S":
-        collection_name += "sec"
-    elif unit == "M":
-        collection_name += "min"
-    elif unit == "H":
-        collection_name += "hour"
-    elif unit == "D":
-        collection_name += "day"
-    elif unit == "Mo":
-        collection_name += "month"
-    else:
-        raise_local_error("undefined unit", "MA")
-        return
-        # check if the field is valid
-    if ("P"):
-        key = "price"
-    elif (field == "V" and field != "TRADES"):
-        railse_local_error("Volumn should request TRADES", "MA")
-        return
-    elif (field == "V"):
-        key = "volume"
-    else:
-        raise_local_error("undefined field", "MA")
-        return
-
-    if is_builtin_interval:
-        posts = collection.find().sort({"date":pymongo.DESCENDING}).limit(interval)
-        for post in posts:
-            total += post[key]
-        bar_count = interval
-    else:
-        pass
-
-    return total / bar_count
-
-def symbol_to_db_name(symbol: str):
-    return "STK_" + symbol
-
-def req_barsize_to_db_barsize(req_barsize: str):
-    return QUERY_CST.TO_DB_BAR_SIZE_DICT[req_barsize]
-
-
-def convert_collection_name(what_to_do: str, bar_size: str):
-    return what_to_do + "_" + req_barsize_to_db_barsize(bar_size)
-
+    return {"has_gap_count": has_gap_count, "bar_num": query.count()}
 
 def get_stk_headtimestamp(db, symbol, what_to_do):
     result = db[symbol].find_one({"what_to_do": what_to_do})
@@ -114,9 +48,7 @@ def most_current_datetime(collection):
     return list(collection.find().sort("datetime", pymongo.DESCENDING).limit(1))[0]["datetime"]
 
 def earlest_datetime(collection):
-    _iter = collection.find().sort("datetime", pymongo.ASCENDING).limit(1)
-    for obj in _iter:
-        return obj["datetime"]
+    return list(collection.find().sort("datetime", pymongo.ASCENDING).limit(1))[0]["datetime"]
 
 def is_STK_full_day(collection, bar_size, dt):
     ask_year = dt.year
@@ -165,10 +97,16 @@ def find_whole_end_dt(collection, collection_bar_size, ask_bar_size):
     lt = datetime.datetime(ask_year, ask_month, ask_day, 16, 0, 0)
 
     query = collection.find_one({"datetime": lt})
+    if(ask_bar_size == "1 day"):
+        if start_dt + collection_time_delta == lt:
+            return lt
+        else:
+            return STK_prev_trade_day_end(lt)
     while (query == None):
         lt = lt - ask_time_delta
         query = collection.find_one({"datetime": lt})
 
     if (start_dt + collection_time_delta - ask_time_delta == query["datetime"]):
         return start_dt + collection_time_delta
+
     return query["datetime"]

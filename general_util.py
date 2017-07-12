@@ -47,25 +47,50 @@ def bar_size_to_step_size(bar_size: str):
 
 def STK_next_trade_day(dt):
     d = dt.weekday()
-    year = dt.year()
-    month = dt.month()
-    day = dt.day()
+    year = dt.year
+    month = dt.month
+    day = dt.day
     out = datetime.datetime(year, month, day, 9, 30, 0)
     if d == 4:
         return out + datetime.timedelta(days = 3)
-    else if d == 5:
+    elif d == 5:
         return out + datetime.timedelta(days = 2)
     else :
         return out + datetime.timedelta(days = 1)
 
+def STK_prev_trade_day_end(dt):
+    d = dt.weekday()
+    year = dt.year
+    month = dt.month
+    day = dt.day
+    out = datetime.datetime(year, month, day, 16, 0, 0)
+    if d == 0:
+        return out - datetime.timedelta(days = 3)
+    elif d == 6:
+        return out - datetime.timedelta(days = 2)
+    else:
+        return out - datetime.timedelta(days = 1)
 
 
 def is_in_STK_Trading_hour(dt):
-    d = dt.weekday()
-    year = dt.year()
-    month = dt.month()
-    day = dt.day()
+
+    year = dt.year
+    month = dt.month
+    day = dt.day
     start = datetime.datetime(year, month, day, 9, 30, 0)
     end = datetime.datetime(year, month, day, 16, 0, 0)
 
     return start <= dt < end
+
+def symbol_to_db_name(symbol: str):
+    return "STK_" + symbol
+
+def req_barsize_to_db_barsize(req_barsize: str):
+    return QUERY_CST.TO_DB_BAR_SIZE_DICT[req_barsize]
+
+
+def convert_collection_name(what_to_do: str, bar_size: str):
+    return what_to_do + "_" + req_barsize_to_db_barsize(bar_size)
+
+def convert_RT_collection_name(bar_size: str):
+    return "RTBAR" + "_" + req_barsize_to_db_barsize(bar_size)

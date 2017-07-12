@@ -1,7 +1,7 @@
 #################  Globals ############################
 CONNECTION_IP = "127.0.0.1"
 CONNECTION_PORT = 7497
-CLIENT_ID = 999
+CLIENT_ID = 0
 
 
 ############### End Globals ###############################
@@ -57,6 +57,9 @@ from trading_contracts import ContractCreateMethods
 from constants import *
 from mongo_query_wrappers import *
 from mongo_build_wrapper import *
+
+from stock_analysis import *
+from order_handler import *
 
 ############## End Importing Custom files ################
 
@@ -162,7 +165,7 @@ class TradingApp(TestWrapper, TestClient):
 
 
     ##################### Togglers ###################################
-        self.add_historical_data = 1
+        self.add_historical_data = 0
         self.from_start = 0
         self.populate_rest_TRADES = 0
         self.query_dict = {}
@@ -192,6 +195,11 @@ class TradingApp(TestWrapper, TestClient):
         self.req_count = 0
         self.line_count = 0
         self.log_file = open("log.txt", "a")
+
+        ################### Communication queues ##########################
+        self.send_rt_bar_q = mp.Queue()
+        self.send_order_feedback_q = mp.Queue()
+        self.rt_bar_req_dict = {3101: "AMD"}
 
     def dumpTestCoverageSituation(self):
         for clntMeth in sorted(self.clntMeth2callCount.keys()):
@@ -273,6 +281,21 @@ class TradingApp(TestWrapper, TestClient):
                                                             "start_toggle": True
                                                             }
                     reqId += 1
+                    if datetime.datetime.today() > most_current_datetime(self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]):
+                        end_dt = datetime.datetime.today()
+                        self.historical_data_req_dict[reqId] = {
+                                                                "symbol": symbol,
+                                                                "what_to_do": what_to_do,
+                                                                "bar_size": bar_size,
+                                                                "start_dt": most_current_datetime(self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]),
+                                                                "end_dt": end_dt,
+                                                                "first_time": first_time,
+                                                                "db": self.db_client[symbol_to_db_name(symbol)],
+                                                                "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)],
+                                                                "last_start":  datetime.datetime.today(),
+                                                                "start_toggle": True
+                                                                }
+                        reqId += 1
         for _id in self.historical_data_req_dict.keys():
             print(_id)
             pprint.pprint(self.historical_data_req_dict[_id])
@@ -405,17 +428,26 @@ class TradingApp(TestWrapper, TestClient):
     def realTimeBars_req(self):
         # Requesting real time bars
         # ! [reqrealtimebars]
-        self.reqRealTimeBars(3101, ContractSamples.USStockAtSmart(), 5, "TRADES", True, [])
+        for req_id, symbol in self.rt_bar_req_dict.items():
+            self.reqRealTimeBars(req_id, ContractCreateMethods.create_US_stock_contract(symbol), 5, "TRADES", True, [])
+        print("RT req sent")
 
     def realtimeBar(self, reqId: TickerId, time: int, open: float, high: float,
                     low: float, close: float, volume: int, wap: float,
                     count: int):
         super().realtimeBar(reqId, time, open, high, low, close, volume, wap, count)
-        print("RealTimeBars. ", reqId, "Time:", time, "Open:", open,
-              "High:", high, "Low:", low, "Close:", close, "Volume:", volume,
-              "Count:", count, "WAP:", wap,  "time", datetime.datetime.now())
-        self.line_count += 1
-        print(">>> line count :", self.line_count)
+        self.send_rt_bar_q.put({
+                                "datetime": datetime.datetime.today(),
+                                "time": time,
+                                "open": open,
+                                "close": close,
+                                "high": high,
+                                "low": low,
+                                "volume": volume,
+                                "WAP": wap,
+                                "count": count
+        })
+        
 
     def headTimeStamp_req_wrapper(self):
         ticket_start = QUERY_CST.HEAD_TIMESTAMP_1
@@ -479,6 +511,68 @@ class TradingApp(TestWrapper, TestClient):
         super().tickString(reqId, tickType, value)
         print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value)
 
+
+    #######################  Requesting Order Info ###################################
+    def orderOperations_req(self):
+        # Requesting the next valid id ***/
+        # ! [reqids]
+        # The parameter is always ignored.
+        self.reqIds(-1)
+        # ! [reqids]
+
+        # Requesting all open orders ***/
+        # ! [reqallopenorders]
+        self.reqAllOpenOrders()
+        # ! [reqallopenorders]
+
+        # Taking over orders to be submitted via TWS ***/
+        # ! [reqautoopenorders]
+        self.reqAutoOpenOrders(True)
+        # ! [reqautoopenorders]
+
+        # Requesting this API client's orders ***/
+        # ! [reqopenorders]
+        self.reqOpenOrders()
+
+    def openOrder(self, orderId: OrderId, contract: Contract, order: Order, orderState: OrderState):
+        super().openOrder(orderId, contract, order, orderState)
+        if orderState.status == "Filled":
+            self.send_order_feedback_q.put({
+                                            "order_id": orderId,
+                                            "contract": contract,
+                                            "order": order,
+                                            "order_status": orderState.status,
+                                            "avg_fill_price": None,
+                                            "order_state": orderState
+            })
+
+        elif orderState.status == "ApiCanceled" or orderState.status == "Canceled":
+            self.send_order_feedback_q.put({
+                                            "order_id": orderId,
+                                            "contract": contract,
+                                            "order": order,
+                                            "order_status": orderState.status,
+                                            "avg_fill_price": None,
+                                            "order_state": orderState
+            })
+
+    def orderStatus(self, orderId: OrderId, status: str, filled: float,
+                       remaining: float, avgFillPrice: float, permId: int,
+                       parentId: int, lastFillPrice: float, clientId: int,
+                       whyHeld: str):
+        super().orderStatus(orderId, status, filled, remaining,
+                            avgFillPrice, permId, parentId, lastFillPrice, clientId, whyHeld)
+        print("OrderStatus. Id:", orderId, "Status:", status, "Filled:", filled,
+              "Remaining:", remaining, "AvgFillPrice:", avgFillPrice,
+              "PermId:", permId, "ParentId:", parentId, "LastFillPrice:",
+              lastFillPrice, "ClientId:", clientId, "WhyHeld:", whyHeld)
+
+    def openOrderEnd(self):
+        super().openOrderEnd()
+        print("OpenOrderEnd")
+
+    #######################  Requesting Order Info End ###################################
+
     def keyboardInterrupt(self):
         self.nKeybInt += 1
         if self.nKeybInt == 1:
@@ -520,15 +614,15 @@ class TradingApp(TestWrapper, TestClient):
             elif self.is_req_head_stamp:
                 self.headTimeStamp_req_wrapper()
             else:
-                self.marketDepthOperations_req()
+                #self.marketDepthOperations_req()
             #self.tickDataOperations_req()
                 self.realTimeBars_req()
+                self.orderOperations_req()
 
 
     def stop(self):
         if self.add_historical_data:
-            pass
-        #self.tickDataOperations_cancel()
+            self.tickDataOperations_cancel()
         else:
 
             self.realTimeBars_cancel()
@@ -544,7 +638,21 @@ class TradingApp(TestWrapper, TestClient):
 
 def main():
     app = TradingApp()
+    rt_price_q = mp.Queue()
+    send_log_q = mp.Queue()
+    oh_send_order_to_app_q = app.order_recv_q
+    app_send_order_feedback_to_oh_q = app.send_order_feedback_q
+    app_send_rt_bar_to_sa_q = app.send_rt_bar_q
 
+    sa_send_order_to_oh_q = mp.Queue()
+    oh_send_order_feedback_to_sa_q = mp.Queue()
+
+    OH = OrderHandler(230000,oh_send_order_to_app_q, sa_send_order_to_oh_q, app_send_order_feedback_to_oh_q, oh_send_order_feedback_to_sa_q)
+    SA = StockAnalysis("AMD", app_send_rt_bar_to_sa_q,
+                       rt_price_q,sa_send_order_to_oh_q,
+                       oh_send_order_feedback_to_sa_q, send_log_q)
+    OH.start()
+    SA.start()
     app.connect(CONNECTION_IP, CONNECTION_PORT, CLIENT_ID)
 
     app.run()

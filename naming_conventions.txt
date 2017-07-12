@@ -1,3 +1,11 @@
+-- Sending communication to MongoDB ---
+
+[db_name, collection_name, insert_post]
+
+
+
+
+
 --MongoDB--
 
 ## Stock ##
@@ -7,12 +15,116 @@ STK_<stocksymbol>: STK_AMD
 
 collection name:
 <wnat to do> + _ + <time> + <time unit>: TRADE_30min; TRADE_1day
+document:
+          "date_time": start_dt
+          "open": 3.24
+          "high":
+          "low":
+          "close":
+          "volume":
+          "count":
+          "WAP":
+          "hasGaps": true, false
 
+collection name: Real Time collections
 
-
-DBs:
+RTBAR + _ + Time Unit: RT_5sec
+document:{
+        "time": large int
+        "open":
+        "high":
+        "low":
+        "close":
+        "volume":
+        "count":
+        "WAP":
+        "datetime":
+}
 
 head_timestamp: start time of each security historical data
   collection: stk symbol
   document: what_to_do:
             datetime:
+
+DB: STK_historical_data_build_log
+  collection: <stk_symbol>
+  document:
+            "what_to_do": "TRADES"....
+            "bar_size": "5 secs" ....
+            "start_dt":
+            "end_dt":
+            "bar_size":
+            "result": "Success", "Fail"
+            "insert_dt":
+            "error_msg": None / MSG_INDEX
+
+  collection: operation_log
+  document:
+          "operation_type": "insert", "update", "delete"
+          "stk_symbol": "AMD"
+          "bar_size":
+          "start_date":
+          "end_date":
+          "result": "Success", "Fail"
+          "operation_dt":
+          "error_msg": None / MSG_INDEX
+
+
+--- Processes ----
+
+Process -- TradingApp
+Process -- StockAnalysis
+Process -- LogBuilder
+
+log_queue: LogBuilder read, other processes put
+stk_rt_bar_queue: TradingApp puts StockAnalysis read
+order_queue: StockAnalysis put, TradingApp Read
+
+
+--- Trading strategy ---
+
+--- w m support, pressure ---
+Stored in list ordered by time
+
+
+w:
+start_high, the nearest high point higher than mid_high
+cur_low: w gets generated when there is a new low point and a prev low point >= cur low and a mid high in the middle
+mid_high: the highest high point between low1 and low 2
+
+W gets expired when cur price is higher than mid high1
+
+min( (mid-high-low1)/low1 , (mid-high - low2)/low2 ) >= 0.4%
+
+m:
+start_low: the nearest low lower than mid_low
+high2: current new high, m generation trigger if : there is a mid low and high2 <= high 1
+high1, nearestpoint >= high2
+mid_low: highest low between high1 and high2
+
+m gets removed when cur price <= mid low
+
+min( (high1 - mid-low)/high1, (high2 - mid-low) / high2 ) >= 0.4%
+
+orderplacement:
+order placed: when cur price >= mid high AS LMT order : position = cur_price + 0.01
+
+Stop loss:
+
+set gain = 0
+
+if highest gain <= 0.50%
+if (mid_high - low2) / mid-high <= 1.5% stop = low2
+else: mid_high - ((mid_high - low2) / 2) = stop
+
+if highest gain : 0.50% - 1.50%:
+sell when cur price gain <= 55% highest gain
+
+if highest-gain : 1.5% - 3%
+sell when cur gain <= 40% highest gain
+
+if highest gain 3% - 5%
+sell when <= 75% highest gain
+
+else:
+sell whe cur gain <= 70% highest gain

@@ -2,6 +2,7 @@ import datetime
 
 class UTIL_CST:
     NUM_TRADE_PRODUCT = 3
+    LOG_OPERATION_TYPE = {"insert", "update", "delete","read"}
 
 class STK_CST:
     BUY = 1
@@ -100,7 +101,46 @@ class QUERY_CST:
                             "4 hours": datetime.timedelta(hours = 4),
                             "8 hours": datetime.timedelta(hours = 8),
                             "1 day": datetime.timedelta(days = 1),
-                            "1 week": datetime.timedelta(weeks = 1),
+                            "1 week": datetime.timedelta(weeks = 1)
+    }
+    GET_RECORD_INTERVAL = {
+                            "5 secs": datetime.timedelta(seconds = 3600),
+                            "10 secs": datetime.timedelta(seconds = 14400),
+                            "15 secs": datetime.timedelta(seconds = 14400),
+                            "30 secs": datetime.timedelta(seconds = 28800),
+                            "1 min": datetime.timedelta(days = 1),
+                            "2 mins": datetime.timedelta(days = 1),
+                            "3 mins": datetime.timedelta(days = 2),
+                            "5 mins": datetime.timedelta(days = 3),
+                            "10 mins": datetime.timedelta(days = 15),
+                            "15 mins": datetime.timedelta(days = 20),
+                            "20 mins": datetime.timedelta(days = 20),
+                            "30 mins": datetime.timedelta(days = 20),
+                            "1 hour": datetime.timedelta(days = 30),
+                            "2 hours": datetime.timedelta(days = 60),
+                            "3 hours": datetime.timedelta(days = 90),
+                            "4 hours": datetime.timedelta(days = 120),
+                            "8 hours": datetime.timedelta(days = 240),
+                            "1 day": datetime.timedelta(days = 360)
+    }
+    RT_BAR_BAR_SIZE_TO_SEC = {
+                                "5 secs": 5,
+                                "10 secs": 10,
+                                "15 secs": 15,
+                                "30 secs": 30,
+                                "1 min": 60,
+                                "2 mins": 120,
+                                "3 mins": 180,
+                                "5 mins": 300,
+                                "10 mins": 600,
+                                "15 mins": 900,
+                                "20 mins": 1200,
+                                "30 mins": 1800,
+                                "1 hour": 3600,
+                                "2 hours": 7200,
+                                "3 hours": 10800,
+                                "4 hours": 14400,
+                                "8 hours": 28800
     }
 
 

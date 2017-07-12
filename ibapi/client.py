@@ -42,6 +42,7 @@ class EClient(object):
 
     def __init__(self, wrapper):
         self.msg_queue = mp.Queue()
+        self.order_recv_q = mp.Queue()
         self.wrapper = wrapper
         self.decoder = None
         self.reset()
@@ -223,6 +224,9 @@ class EClient(object):
                 try:
                     try:
                         text = self.msg_queue.get(block=True, timeout=0.2)
+                        if(not self.order_recv_q.empty):
+                            order = self.order_recv_q.get()
+                            self.placeOrder(order[0], order[1], order[2])
                         if len(text) > MAX_MSG_LEN:
                             self.wrapper.error(NO_VALID_ID, BAD_LENGTH.code(),
                                 "%s:%d:%s" % (BAD_LENGTH.msg(), len(text), text))
