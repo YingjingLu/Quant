@@ -282,13 +282,13 @@ class TradingApp(TestWrapper, TestClient):
                                                             }
                     reqId += 1
                     if datetime.datetime.today() > most_current_datetime(self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]):
-                        end_dt = datetime.datetime.today()
+                        end_dt2 = datetime.datetime.today()
                         self.historical_data_req_dict[reqId] = {
                                                                 "symbol": symbol,
                                                                 "what_to_do": what_to_do,
                                                                 "bar_size": bar_size,
                                                                 "start_dt": most_current_datetime(self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)]),
-                                                                "end_dt": end_dt,
+                                                                "end_dt": end_dt2,
                                                                 "first_time": first_time,
                                                                 "db": self.db_client[symbol_to_db_name(symbol)],
                                                                 "collection": self.db_client[symbol_to_db_name(symbol)][convert_collection_name(what_to_do, bar_size)],
@@ -398,7 +398,7 @@ class TradingApp(TestWrapper, TestClient):
     def marketDepthOperations_req(self):
         # Requesting the Deep Book
         # ! [reqmarketdepth]
-        self.reqMktDepth(2101, ContractSamples.USStock(), 5, [])
+        self.reqMktDepth(2101, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "ISLAND"), 5, [])
         # ! [reqmarketdepth]
 
         # Request list of exchanges sending market depth to UpdateMktDepthL2()
@@ -447,7 +447,7 @@ class TradingApp(TestWrapper, TestClient):
                                 "WAP": wap,
                                 "count": count
         })
-        
+
 
     def headTimeStamp_req_wrapper(self):
         ticket_start = QUERY_CST.HEAD_TIMESTAMP_1
@@ -477,7 +477,7 @@ class TradingApp(TestWrapper, TestClient):
         self.cancelRealTimeBars(3101)
 
     def tickDataOperations_req(self):
-        self.reqMktData(1101, ContractSamples.USStockAtSmart(), "", False, False, [])
+        self.reqMktData(1101, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "ISLAND"), "", False, False, [])
 
     def tickDataOperations_cancel(self):
         # Canceling the market data subscription
@@ -536,6 +536,10 @@ class TradingApp(TestWrapper, TestClient):
 
     def openOrder(self, orderId: OrderId, contract: Contract, order: Order, orderState: OrderState):
         super().openOrder(orderId, contract, order, orderState)
+        print("OpenOrder. ID:", orderId, contract.symbol, contract.secType,
+              "@", contract.exchange, ":", order.action, order.orderType,
+              order.totalQuantity, orderState.status)
+        """
         if orderState.status == "Filled":
             self.send_order_feedback_q.put({
                                             "order_id": orderId,
@@ -555,6 +559,7 @@ class TradingApp(TestWrapper, TestClient):
                                             "avg_fill_price": None,
                                             "order_state": orderState
             })
+        """
 
     def orderStatus(self, orderId: OrderId, status: str, filled: float,
                        remaining: float, avgFillPrice: float, permId: int,
@@ -566,10 +571,25 @@ class TradingApp(TestWrapper, TestClient):
               "Remaining:", remaining, "AvgFillPrice:", avgFillPrice,
               "PermId:", permId, "ParentId:", parentId, "LastFillPrice:",
               lastFillPrice, "ClientId:", clientId, "WhyHeld:", whyHeld)
+        self.send_order_feedback_q.put(
+                                        {
+                                        "order_id": orderId,
+                                        "order_status": status,
+                                        "filled": filled,
+                                        "remaining": remaining,
+                                        "avg_fill_price": avgFillPrice,
+                                        "perm_id": permId,
+                                        "parent_id": parentId,
+                                        "last_fill_price": lastFillPrice,
+                                        "client_id": clientId,
+                                        "why_held": whyHeld,
+                                        "cur_time": datetime.datetime.today()
+                                        }
+        )
 
     def openOrderEnd(self):
         super().openOrderEnd()
-        print("OpenOrderEnd")
+        self.orderOperations_req()
 
     #######################  Requesting Order Info End ###################################
 
@@ -614,8 +634,8 @@ class TradingApp(TestWrapper, TestClient):
             elif self.is_req_head_stamp:
                 self.headTimeStamp_req_wrapper()
             else:
-                #self.marketDepthOperations_req()
-            #self.tickDataOperations_req()
+                self.marketDepthOperations_req()
+                #self.tickDataOperations_req()
                 self.realTimeBars_req()
                 self.orderOperations_req()
 

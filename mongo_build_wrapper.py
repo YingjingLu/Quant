@@ -203,7 +203,7 @@ def writer2(q):
     for i in range(0, q):
         db_client["test_2"]["test_2"].insert_one({"test": i})
     db_client.close()
-"""
+
 def run_main():
     # lst = ["NVDA", "BABA"]
     # BABA_p = mp.Process(target = conclude_interval_TRADES_wrapper, args = (pymongo.MongoClient(),"BABA"))
@@ -233,4 +233,3 @@ def run_main():
 
 if __name__ == "__main__":
     run_main()
-"""

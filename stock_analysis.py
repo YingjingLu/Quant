@@ -42,14 +42,18 @@ class StockAnalysis(mp.Process):
         self.low_to_high = 0
         self.high_to_low = 0
         self.finding_high = True
+        self.today_first_high_low = True
         # list of orders always sorted by
-        self.order_list = []
+        self.order_dict = dict()
         self.pre_order_dict = dict()
         self.existing_order_id_set = set()
 
         self.rt_bar_accum_count = 0
-        self.rt_bar_accum_max = 12
+        self.calc_bar_size = "1 min"
+        self.rt_bar_accum_max = QUERY_CST.RT_BAR_BAR_SIZE_TO_SEC[self.calc_bar_size] // 5
+        print( self.rt_bar_accum_max)
         self.rt_bar_accum_dict = dict()
+        self.rt_bar_calibrated = False
 
         #self.log_file = open("SA_LOG.txt", "wb")
         print("finish SA init")
@@ -74,28 +78,35 @@ class StockAnalysis(mp.Process):
         self.join()
 
     def rt_bar_handler(self, rt_dict, db):
-        print("RealTime_Bar: ", rt_dict)
+        # print("RealTime_Bar: ", rt_dict)
         db[convert_RT_collection_name("5 secs")].insert_one(rt_dict)
         #self.log_file.write("Got 5sec RT Bar: " + str(rt_dict) + "\n")
-        self.determine_order(rt_dict)
+        if (self.rt_bar_calibrated == False) and (rt_dict["time"] % QUERY_CST.RT_BAR_BAR_SIZE_TO_SEC[self.calc_bar_size] == 0):
+            self.rt_bar_calibrated = True
+        if self.rt_bar_calibrated == False:
+            return
+
         if self.rt_bar_accum_count == 0:
             self.rt_bar_accum_dict = rt_dict
             self.rt_bar_accum_count += 1
         else:
-            if self.rt_bar_accum_dict["high"] < rt_dict["high"]:
-                self.rt_bar_accum_dict["high"] = rt_dict["high"]
-            if self.rt_bar_accum_dict["low"] > rt_dict["low"]:
-                self.rt_bar_accum_dict["low"] = rt_dict["low"]
-            self.rt_bar_accum_dict["WAP"] = (self.rt_bar_accum_dict["WAP"]*self.rt_bar_accum_dict["volume"] + rt_dict["WAP"]*rt_dict["volume"])/(self.rt_bar_accum_dict["volume"] + rt_dict["volume"])
-            self.rt_bar_accum_dict["volume"] = self.rt_bar_accum_dict["volume"] + rt_dict["volume"]
+            if rt_dict["volume"] != 0:
+                if self.rt_bar_accum_dict["high"] < rt_dict["high"]:
+                    self.rt_bar_accum_dict["high"] = rt_dict["high"]
+                if self.rt_bar_accum_dict["low"] > rt_dict["low"]:
+                    self.rt_bar_accum_dict["low"] = rt_dict["low"]
+                self.rt_bar_accum_dict["WAP"] = (self.rt_bar_accum_dict["WAP"]*self.rt_bar_accum_dict["volume"] + rt_dict["WAP"]*rt_dict["volume"])/(self.rt_bar_accum_dict["volume"] + rt_dict["volume"])
+                self.rt_bar_accum_dict["volume"] = self.rt_bar_accum_dict["volume"] + rt_dict["volume"]
+                self.rt_bar_accum_dict["count"] = self.rt_bar_accum_dict["count"] + rt_dict["count"]
             self.rt_bar_accum_count += 1
             if self.rt_bar_accum_count == self.rt_bar_accum_max:
                 self.rt_bar_accum_dict["close"] = rt_dict["close"]
                 self.rt_bar_accum_dict["WAP"] = round(self.rt_bar_accum_dict["WAP"], 2)
-                print("1 min bar: ", self.rt_bar_accum_dict)
-                #self.log_file.write("1 Min Bar: " + str(self.rt_bar_accum_dict) + "\n")
+                #print("RT Bar: ", self.rt_bar_accum_dict)
+                #self.log_file.write("RT Bar: " + str(self.rt_bar_accum_dict) + "\n")
                 self.calc_WAP_low_high(self.rt_bar_accum_dict, db)
                 self.rt_bar_accum_count = 0
+        self.determine_order(rt_dict)
 
     """
         def calc_low_high(self, rt_dict, db):
@@ -177,15 +188,16 @@ class StockAnalysis(mp.Process):
                                 #self.log_file.write("switch to find high @: " + str(rt_dict) + "\n")
                                 # record last high
                                 self.today_high_dict[self.index] = self.cur_high_dict
-                                self.add_top_w()
+                                self.add_top_m()
                                 self.index += 1
                                 # switch to new high
                                 self.cur_high = self.cur_WAP
                                 self.cur_high_dict = rt_dict
     """
-
+    """
     def calc_WAP_low_high(self, rt_dict, db):
-        db[convert_RT_collection_name("1 min")].insert_one(rt_dict)
+        db[convert_RT_collection_name(self.calc_bar_size)].insert_one(rt_dict)
+
         if self.today_first_bar:
             self.cur_low = rt_dict["WAP"]
             self.cur_high = rt_dict["WAP"]
@@ -194,8 +206,13 @@ class StockAnalysis(mp.Process):
             self.cur_high_dict = rt_dict
             self.today_first_bar = False
         else:
+            print(">>> Finding High: ", self.finding_high)
+            print(">>> self.cur_low_WAP: ", self.cur_low_dict["WAP"], self.cur_low_dict["datetime"])
+            print(">>> self.cur_high_WAP: ", self.cur_high_dict["WAP"], self.cur_high_dict["datetime"])
+            print(">>> self.high_to_low: ", self.high_to_low)
+            print(">>> self.low_to_high: ", self.low_to_high)
             self.cur_WAP = rt_dict["WAP"]
-            if self.finding_high:
+            if self.finding_high == True:
 
                 # turing from increasing to decreasing
 
@@ -206,24 +223,24 @@ class StockAnalysis(mp.Process):
                     # end checking ignored middle high
                     self.low_to_high = 0
                     self.high_to_low += 1
-                    print("New Low: ", rt_dict)
+                    print("New Low: ", rt_dict["WAP"])
                     #self.log_file.write("New Low: " + str(rt_dict) + "\n")
                 elif self.cur_WAP >= self.cur_high:
                     self.low_to_high += 1
                     self.high_to_low = 0
                     self.cur_high = self.cur_WAP
-                    print("Change_cur_high: ", rt_dict)
+                    print("Change_cur_high: ", rt_dict["WAP"])
                     #self.log_file.write("Change Cur High: " + str(rt_dict) + "\n")
                     self.cur_high_dict = rt_dict
                 else:
                     self.high_to_low += 1
 
                     if self.high_to_low > self.one_side_count:
-                        high_time = self.cur_high_dict["time"]
+                        start_time = self.cur_high_dict["time"]
                         end_time = rt_dict["time"]
-                        recent_min_dict = self.find_RT_interval_WAP_min_max("MIN", "1 min", high_time, end_time, db)[0]
-
-                        if abs(recent_min_dict["time"] - high_time)//(5*self.rt_bar_accum_max) >= self.one_side_count:
+                        recent_min_dict = self.find_RT_interval_WAP_min_max("MIN", self.calc_bar_size, start_time, end_time, db)[-1]
+                        print("more than 3 bars after high")
+                        if abs(recent_min_dict["time"] - start_time)//(5*self.rt_bar_accum_max) >= self.one_side_count:
                             # switch to find low
                             self.finding_high = False
                             print("switch to find low @: ", rt_dict)
@@ -232,7 +249,8 @@ class StockAnalysis(mp.Process):
                             print("Today_high_dict: ", self.today_high_dict)
                             #self.log_file.write("switch to find low @: " + str(rt_dict) + "\n")
                             # record last low
-                            self.today_low_dict[self.index] = self.cur_low_dict
+                            #self.today_low_dict[self.index] = self.cur_low_dict
+                            self.today_low_dict[self.index] = recent_min_dict
                             print("After inserting new low ")
                             print("Today_low_dict: ", self.today_low_dict)
                             print("Today_high_dict: ", self.today_high_dict)
@@ -241,6 +259,9 @@ class StockAnalysis(mp.Process):
                             # switch to new low ## MODIFIED ##
                             # self.cur_low = self.cur_WAP
                             # self.cur_low_dict = rt_dict
+                            self.cur_low = recent_min_dict["WAP"]
+                            self.cur_low_dict = recent_min_dict
+                            self.high_to_low = 0
             # if finding low:
 
             else:
@@ -250,27 +271,28 @@ class StockAnalysis(mp.Process):
                     self.cur_high_dict = rt_dict
                     self.high_to_low = 0
                     self.low_to_high += 1
-                    print("New High: ", rt_dict)
+                    print("New High: ", rt_dict["WAP"])
                     #self.log_file.write("New High: " + str(rt_dict) + "\n")
                 # keep searching for new low
                 elif self.cur_WAP <= self.cur_low:
                     self.high_to_low += 1
-                    self.low_to_high += 1
+                    self.low_to_high = 0
                     self.cur_low = self.cur_WAP
-                    print("Change cur low: ", rt_dict)
+                    print("Change cur low: ", rt_dict["WAP"])
                     #self.log_file.write("Change cur low2: " + str(rt_dict) + "\n")
                     self.cur_low_dict = rt_dict
                 # turing from decreasing to increasing
                 else:
                     self.low_to_high += 1
                     if self.low_to_high > self.one_side_count:
+                        print("more than 3 bars after low")
                         low_time = self.cur_low_dict["time"]
                         end_time = rt_dict["time"]
-                        recent_high_dict = self.find_RT_interval_WAP_min_max("MAX", "1 min", low_time, end_time, db)[0]
+                        recent_high_dict = self.find_RT_interval_WAP_min_max("MAX", self.calc_bar_size, low_time, end_time, db)[-1]
 
                         if abs(recent_high_dict["time"] - low_time)//(5*self.rt_bar_accum_max) >= self.one_side_count:
                             # switch to find high
-                            self.find_high = True
+                            self.finding_high = True
 
                             print("switch to find high @: ", rt_dict)
                             print("before inserting new high ")
@@ -278,19 +300,23 @@ class StockAnalysis(mp.Process):
                             print("Today_high_dict: ", self.today_high_dict)
                             #self.log_file.write("switch to find high @: " + str(rt_dict) + "\n")
                             # record last high
-                            self.today_high_dict[self.index] = self.cur_high_dict
+                            #self.today_high_dict[self.index] = self.cur_high_dict
+                            self.today_high_dict[self.index] = recent_high_dict
                             print("After inserting new high ")
                             print("Today_low_dict: ", self.today_low_dict)
                             print("Today_high_dict: ", self.today_high_dict)
-                            self.add_top_w()
+                            self.add_top_m()
                             self.index += 1
                             # switch to new high ### MIDOFIED ##
-                            # self.cur_high = self.cur_WAP
-                            # self.cur_high_dict = rt_dict
-    """
+                            self.cur_high = recent_high_dict["WAP"]
+                            self.cur_high_dict = recent_high_dict
+                            self.low_to_high = 0
+        """
 
-        def calc_WAP_low_high(self, rt_dict, db):
-            db[convert_RT_collection_name("1 min")].insert_one(rt_dict)
+    def calc_WAP_low_high(self, rt_dict, db):
+        db[convert_RT_collection_name(self.calc_bar_size)].insert_one(rt_dict)
+        self.cur_WAP = rt_dict["WAP"]
+        if self.today_first_high_low:
             if self.today_first_bar:
                 self.cur_low = rt_dict["WAP"]
                 self.cur_high = rt_dict["WAP"]
@@ -299,45 +325,126 @@ class StockAnalysis(mp.Process):
                 self.cur_high_dict = rt_dict
                 self.today_first_bar = False
             else:
-                self.cur_WAP = rt_dict["WAP"]
-                # update if new low appears
                 if self.cur_WAP <= self.cur_low:
                     self.cur_low = self.cur_WAP
                     self.cur_low_dict = rt_dict
                     # end checking ignored middle high
                     self.low_to_high = 0
                     self.high_to_low += 1
-                    print("New Low: ", rt_dict)
+                    print("New Low: ", rt_dict["WAP"], " @ ", rt_dict["datetime"])
                     #self.log_file.write("New Low: " + str(rt_dict) + "\n")
                 elif self.cur_WAP >= self.cur_high:
                     self.low_to_high += 1
                     self.high_to_low = 0
                     self.cur_high = self.cur_WAP
-                    print("Change_cur_high: ", rt_dict)
+                    print("New High: ", rt_dict["WAP"], " @ ", rt_dict["datetime"])
                     #self.log_file.write("Change Cur High: " + str(rt_dict) + "\n")
                     self.cur_high_dict = rt_dict
                 else:
                     self.high_to_low += 1
+                    self.low_to_high += 1
+                if self.high_to_low >= self.one_side_count:
+                    self.today_high_dict[self.index] = self.cur_high_dict
+                    self.index += 1
+                    self.low_to_high = 0
+
+                    self.finding_high = False
+
+                    self.today_first_high_low = False
+                    print("...................")
+                    print("After inserting new High:  ", self.cur_high_dict["WAP"], " @ ", self.cur_high_dict["datetime"])
+                    print("...................")
+
+                elif self.low_to_high >= self.one_side_count:
+                    self.today_low_dict[self.index] = self.cur_low_dict
+                    self.index += 1
+                    self.high_to_low = 0
+
+                    self.finding_high = True
+                    self.today_first_high_low = False
+                    print("...................")
+                    print("After inserting new Low:  ", self.cur_low_dict["WAP"], " @ ", self.cur_low_dict["datetime"])
+                    print("...................")
+
+
+        else:
+
+
+            # turing from increasing to decreasing
+
+            # update if new low appears
+            if self.cur_WAP <= self.cur_low:
+                self.cur_low = self.cur_WAP
+                self.cur_low_dict = rt_dict
+                # end checking ignored middle high
+                self.low_to_high = 0
+                self.high_to_low += 1
+                print("New Low: ", rt_dict["WAP"], " @ ", rt_dict["datetime"])
+                #self.log_file.write("New Low: " + str(rt_dict) + "\n")
+            elif self.cur_WAP >= self.cur_high:
+                self.low_to_high += 1
+                self.high_to_low = 0
+                self.cur_high = self.cur_WAP
+                print("New High: ", rt_dict["WAP"], " @ ", rt_dict["datetime"])
+                #self.log_file.write("Change Cur High: " + str(rt_dict) + "\n")
+                self.cur_high_dict = rt_dict
+            else:
+                if self.finding_high == True:
+                    self.high_to_low += 1
 
                     if self.high_to_low > self.one_side_count:
-                        high_time = self.cur_high_dict["time"]
+                        start_time = self.cur_low_dict["time"]
                         end_time = rt_dict["time"]
-                        recent_min_dict = self.find_RT_interval_WAP_min_max("MIN", "1 min", high_time, end_time, db)[0]
-
-                        if abs(recent_min_dict["time"] - high_time)//(5*self.rt_bar_accum_max) >= self.one_side_count:
+                        recent_max_dict = self.find_RT_interval_WAP_min_max("MAX", self.calc_bar_size, start_time, end_time, db)[-1]
+                        print("more than 3 bars after high")
+                        if abs(recent_max_dict["time"] - start_time)//(5*self.rt_bar_accum_max) >= self.one_side_count:
                             # switch to find low
                             self.finding_high = False
                             print("switch to find low @: ", rt_dict)
+
                             #self.log_file.write("switch to find low @: " + str(rt_dict) + "\n")
                             # record last low
-                            self.today_low_dict[self.index] = self.cur_low_dict
+                            #self.today_low_dict[self.index] = self.cur_low_dict
+                            self.today_high_dict[self.index] = recent_max_dict
+                            print("...................")
+                            print("After inserting new High:  ", recent_max_dict["WAP"], " @ ", recent_max_dict["datetime"])
+                            print("...................")
+                            self.add_top_m()
+                            self.index += 1
+                            # switch to new low ## MODIFIED ##
+                            # self.cur_low = self.cur_WAP
+                            # self.cur_low_dict = rt_dict
+                            self.cur_high = recent_max_dict["WAP"]
+                            self.cur_high_dict = recent_max_dict
+                            self.low_to_high = 0
+
+                else:
+                    self.low_to_high += 1
+                    if self.low_to_high > self.one_side_count:
+                        print("more than 3 bars after low")
+                        start_time = self.cur_high_dict["time"]
+                        end_time = rt_dict["time"]
+                        recent_min_dict = self.find_RT_interval_WAP_min_max("MIN", self.calc_bar_size, start_time, end_time, db)[-1]
+
+                        if abs(recent_min_dict["time"] - start_time)//(5*self.rt_bar_accum_max) >= self.one_side_count:
+                            # switch to find high
+                            self.finding_high = True
+
+                            print("switch to find high @: ", rt_dict)
+
+                            #self.log_file.write("switch to find high @: " + str(rt_dict) + "\n")
+                            # record last high
+                            #self.today_high_dict[self.index] = self.cur_high_dict
+                            self.today_low_dict[self.index] = recent_min_dict
+                            print("...................")
+                            print("After inserting new Low:  ", recent_min_dict["WAP"], " @ ", recent_min_dict["datetime"])
+                            print("...................")
                             self.add_bottom_w()
                             self.index += 1
-                            # switch to new low
-                            self.cur_low = self.cur_WAP
-                            self.cur_low_dict = rt_dict
-    """
-
+                            # switch to new high ### MIDOFIED ##
+                            self.cur_low = recent_min_dict["WAP"]
+                            self.cur_low_dict = recent_min_dict
+                            self.high_to_low = 0
     # Assume that the function is called when a new low is added AND index has NOT been incremented
     def add_bottom_w(self):
         cur_low_index = self.index
@@ -381,8 +488,8 @@ class StockAnalysis(mp.Process):
                         new_w_dict = {
                                       "low1_dict": self.today_low_dict[low_index],
                                       "low1_index": low_index,
-                                      "low2_dict": cur_low_index,
-                                      "low2_index": cur_low_dict,
+                                      "low2_dict": cur_low_dict,
+                                      "low2_index": cur_low_index,
                                       "mid_high_dict": self.today_high_dict[high_index],
                                       "mid_high_index": high_index,
                                       "start_high": start_high,
@@ -395,7 +502,7 @@ class StockAnalysis(mp.Process):
 
 
     # assume that the function is called when a new high is added
-    def add_top_w(self):
+    def add_top_m(self):
         cur_high_index = self.index
         cur_high_dict = self.today_high_dict[self.index]
         cur_high_WAP = cur_high_dict["WAP"]
@@ -506,7 +613,7 @@ class StockAnalysis(mp.Process):
 
     def determine_sell(self, order, rt_bar):
         min_price = rt_bar["low"]
-        for order_dict in self.order_list:
+        for order_dict in self.order_dict.values():
             if min_price <= order_dict["stop_pos"]:
                 self.place_sell_order(order)
                 #self.log_file.write("Stop Loss : Order: " + str(order_dict) + "rt_bar: "+(rt_bar)+"\n")
@@ -577,12 +684,17 @@ class StockAnalysis(mp.Process):
 
     def put_successful_order_to_list(self, return_order_dict):
         if return_order_dict["order_status"] == "Filled":
-            insert_order = self.pre_order_dict[return_order_dict["order_id"]]
-            if return_order_dict["avg_fill_price"] != None:
-                 insert_order["start_position"] = return_order_dict["avg_fill_price"]
-        print("Order Successfully fill: ", insert_order)
-        #self.log_file.write("Order successfully fill: " + str(insert_order) +"\n")
-        self.order_list.append(insert_order)
+            if self.pre_order_dict[return_order_dict["order_id"]]["action"] == "BUY":
+                insert_order = self.pre_order_dict[return_order_dict["order_id"]]
+                if return_order_dict["avg_fill_price"] != None:
+                     insert_order["start_position"] = return_order_dict["avg_fill_price"]
+                insert_order["amount"] = return_order_dict["amount"]
+                print("Order Successfully fill: ", insert_order)
+            #self.log_file.write("Order successfully fill: " + str(insert_order) +"\n")
+                self.order_dict[return_order_dict["order_id"]] = insert_order
+
+        if self.pre_order_dict[return_order_dict["order_id"]]["action"] == "SELL":
+            self.order_dict.pop(return_order_dict["order_id"])
 
     def find_RT_interval_WAP_min_max(self, min_or_max, bar_size, start_time, end_time, db):
         pipeline = [

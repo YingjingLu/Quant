@@ -14,6 +14,7 @@ class OrderCreateMethods:
         order.action = action
         order.orderType = "MKT"
         order.totalQuantity = quantity
+        return order
 
     @staticmethod
     def LMT_order(action, quantity, price):
@@ -22,6 +23,7 @@ class OrderCreateMethods:
         order.orderType = "LMT"
         order.lmtPrice = price
         order.totalQuantity = quantity
+        return order
 
 
     @staticmethod

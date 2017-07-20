@@ -226,6 +226,7 @@ class EClient(object):
                         text = self.msg_queue.get(block=True, timeout=0.2)
                         if(not self.order_recv_q.empty):
                             order = self.order_recv_q.get()
+                            print("Order Client gets: ", order)
                             self.placeOrder(order[0], order[1], order[2])
                         if len(text) > MAX_MSG_LEN:
                             self.wrapper.error(NO_VALID_ID, BAD_LENGTH.code(),
