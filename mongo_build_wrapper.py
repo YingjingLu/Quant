@@ -228,6 +228,7 @@ def run_main():
     conclude_interval_TRADES_wrapper(db_client, "AMD")
     conclude_interval_TRADES_wrapper(db_client, "BABA")
     conclude_interval_TRADES_wrapper(db_client, "NVDA")
+    db_client.close()
 
 
 

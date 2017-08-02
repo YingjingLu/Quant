@@ -46,13 +46,13 @@ class OrderHandler(mp.Process):
         if order_dict["product_type"] == "STK":
             if order_dict["is_mkt_order"]:
                 if order_dict["action"] == "SELL":
-                    contract = ct.create_US_stock_contract(symbol = order_dict["symbol"])
+                    contract = ct.create_US_stock_contract(stock_symbol = order_dict["symbol"])
                     order = od.MKT_order("SELL", order_dict["amount"])
                     self.send_order_to_app_q.put([order_dict["sell_order_id"], contract, order])
                     self.order_dict[order_dict["sell_order_id"]] = order_dict
                     self.order_dict[order_dict["sell_order_id"]]["last_avg_fill_price"] = 0
                     self.order_dict[order_dict["sell_order_id"]]["last_filled"] = 0
-                    self.order_dict[order_dict["sell_order_id"]]["last_remaining"] = amount
+                    self.order_dict[order_dict["sell_order_id"]]["last_remaining"] = order_dict['amount']
                     self.order_dict[order_dict["sell_order_id"]]["order_place_dt"] = datetime.datetime.today()
             else: # if it is not market order
                 if order_dict["action"] == "BUY":
@@ -91,7 +91,7 @@ class OrderHandler(mp.Process):
         if related_order['action'] == "SELL":
             if order_feedback["order_status"] == "Filled" or order_feedback["remaining"] == 0.0:
                 send_order_feedback = {
-                                    "order_id": order_feedback["order_id"],
+                                    "order_id": self.order_dict[order_feedback["order_id"]]["order_id"],
                                     "order_status": "Filled",
                                     "avg_fill_price": order_feedback["avg_fill_price"],
                                     "amount": order_feedback["filled"],
@@ -103,7 +103,7 @@ class OrderHandler(mp.Process):
             elif order_feedback["order_status"] == "Canceled" or order_feedback["order_status"] == "ApiCanceled":
                 if order_feedback["filled"] > 0:
                     send_order_feedback = {
-                                        "order_id": order_feedback["order_id"],
+                                        "order_id": self.order_dict[order_feedback["order_id"]]["order_id"],
                                         "order_status": "Filled",
                                         "avg_fill_price": order_feedback["avg_fill_price"],
                                         "amount": order_feedback["filled"],
@@ -154,8 +154,8 @@ class OrderHandler(mp.Process):
         amount = self.order_one_time_max / price // 100
         if amount == 0:
             return 0
-        elif amount*price <= self.total_cash - FEE:
-            return amount
+        elif amount*100*price <= self.total_cash - FEE:
+            return amount*100
         else:
             return 0
 

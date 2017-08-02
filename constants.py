@@ -159,3 +159,72 @@ class QUERY_HISTORY:
                                 "BABA": 1,
                                 "WB": 1
                                 }
+
+class MKT_TICK_TYPES:
+    WRAPPER_TYPE = {
+                        0: "tickPrice",
+                        1: "tickSize",
+                        2: "tickString",
+                        3: "tickGeneric"
+    }
+
+    TICK_TYPE = {
+                    0:{
+                        1: "HIghest price bid for the contract",
+                        2: "Lowest ask price",
+                        4: "Last price traded",
+                        6: "Highest price for the day",
+                        7: "Lowest price for the day",
+                        9: "Last available closing price of privious day",
+                        14: "Open price today",
+                        15: "Lowest price last 13 weeks",
+                        16: "Highest pric last 13 weeks",
+                        17: "lowest price in last 26 weeks",
+                        18: "Highest in 26 weeks",
+                        19: "Lowest in 52 weeks",
+                        20: "Highest in 52 weeks",
+                        35: "potential auction price",
+                        37: "Current theortical calculated price",
+                        50: "Yield for bond at current bid price",
+                        51: "Yield for bond at current ask price",
+                        52: "Implied Yield for bond at last price",
+                        57: "Last regular hour trade price"
+                    },
+
+                    1:{
+                        0: "number of contract at bid price",
+                        3: "number of contracts at ask price",
+                        5: "number of contract traded at last price",
+                        8: "today's comulated volume  // 100",
+                        21: "90 days average volume // 100",
+                        27: "Call option open interest",
+                        28: "Put option open interest",
+                        29: "Call option volume for trading day",
+                        30: "Put option volume for the trading day",
+                        34: "The number of shares that would trade if auction held now",
+                        36: "number of unmatched shares of auction",
+                        63: "The past three minutes volume. Interpolation may be applied.",
+                        64: "The past five minutes volume. Interpolation may be applied.",
+                        65: "The past ten minutes volume. Interpolation may be applied."
+                    },
+
+                    2:{
+                        32: "Bid exchange",
+                        33: "Ask exchange",
+                        45: "time of last trade",
+                        47: "reuter's fundamental ratio",
+                        48: "rt volume",
+                        59: "IB dividend",
+                        77: "RT trade volume"
+                    },
+
+                    3:{
+                        23: "30 day historical volatility"
+
+                    }
+
+
+
+
+
+    }

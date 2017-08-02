@@ -14,6 +14,7 @@ import collections
 import inspect
 import threading
 import pprint
+import math
 
 import logging
 import time
@@ -200,6 +201,7 @@ class TradingApp(TestWrapper, TestClient):
         self.send_rt_bar_q = mp.Queue()
         self.send_order_feedback_q = mp.Queue()
         self.rt_bar_req_dict = {3101: "AMD"}
+        self.market_depth_req_dict = {2101: "AMD"}
 
     def dumpTestCoverageSituation(self):
         for clntMeth in sorted(self.clntMeth2callCount.keys()):
@@ -408,15 +410,15 @@ class TradingApp(TestWrapper, TestClient):
     def updateMktDepth(self, reqId: TickerId, position: int, operation: int,
                        side: int, price: float, size: int):
         super().updateMktDepth(reqId, position, operation, side, price, size)
-        print("UpdateMarketDepth. ", reqId, "Position:", position, "Operation:",
-              operation, "Side:", side, "Price:", price, "Size", size, "time", datetime.datetime.now())
+        post = {"req_id": reqId, "position": position, "operation":
+              operation, "side": side, "price": price, "size": size, "datetime": datetime.datetime.now(), "time": math.floor(time.time())}
 
     def updateMktDepthL2(self, reqId: TickerId, position: int, marketMaker: str,
                          operation: int, side: int, price: float, size: int):
         super().updateMktDepthL2(reqId, position, marketMaker, operation, side,
                                  price, size)
-        print("UpdateMarketDepthL2. ", reqId, "Position:", position, "Operation:",
-              operation, "Side:", side, "Price:", price, "Size", size,  "time", datetime.datetime.now())
+        #post = {"req_id": reqId, "position", position, "operation:",
+        #      operation, "side:", side, "price:", price, "size", size,  "datetime", datetime.datetime.now(), "time": math.floor(time.time()))}
         self.line_count += 1
         print(">>> line count :", self.line_count)
 
@@ -436,6 +438,7 @@ class TradingApp(TestWrapper, TestClient):
                     low: float, close: float, volume: int, wap: float,
                     count: int):
         super().realtimeBar(reqId, time, open, high, low, close, volume, wap, count)
+        #print("Time: ", time, "actualtime: ", datetime.datetime.now())
         self.send_rt_bar_q.put({
                                 "datetime": datetime.datetime.today(),
                                 "time": time,
@@ -477,7 +480,13 @@ class TradingApp(TestWrapper, TestClient):
         self.cancelRealTimeBars(3101)
 
     def tickDataOperations_req(self):
-        self.reqMktData(1101, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "ISLAND"), "", False, False, [])
+        self.reqMktData(1004, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "ISLAND"), "233,232", False, False, [])
+        self.reqMktData(1005, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "FINRA"), "233,232", False, False, [])
+        self.reqMktData(1006, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BYX"), "233,232", False, False, [])
+        self.reqMktData(1007, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "IEX"), "233,232", False, False, [])
+        self.reqMktData(1008, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BATS"), "233,232", False, False, [])
+        self.reqMktData(1009, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BEX"), "233,232", False, False, [])
+        self.reqMktData(1010, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "DRCTEDGE"), "233,232", False, False, [])
 
     def tickDataOperations_cancel(self):
         # Canceling the market data subscription
@@ -487,15 +496,17 @@ class TradingApp(TestWrapper, TestClient):
     def tickPrice(self, reqId: TickerId, tickType: TickType, price: float,
                   attrib: TickAttrib):
         super().tickPrice(reqId, tickType, price, attrib)
-        print("Tick Price. Ticker Id:", reqId, "tickType:", tickType, "Price:",
-              price, "CanAutoExecute:", attrib.canAutoExecute,
-              "PastLimit", attrib.pastLimit)
+        if tickType == 4:
+            print("Tick Price. Ticker Id:", reqId, "tickType:", tickType, "Price:",
+                  price, "CanAutoExecute:", attrib.canAutoExecute,
+                  "PastLimit", attrib.pastLimit)
 
     # ! [tickprice]
     # ! [ticksize]
     def tickSize(self, reqId: TickerId, tickType: TickType, size: int):
         super().tickSize(reqId, tickType, size)
-        print("Tick Size. Ticker Id:", reqId, "tickType:", tickType, "Size:", size)
+        if tickType ==5:
+            print("Tick Size. Ticker Id:", reqId, "tickType:", tickType, "Size:", size)
 
     # ! [ticksize]
 
@@ -509,7 +520,8 @@ class TradingApp(TestWrapper, TestClient):
     # ! [tickstring]
     def tickString(self, reqId: TickerId, tickType: TickType, value: str):
         super().tickString(reqId, tickType, value)
-        print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value)
+        if tickType == 77 or tickType == 48:
+            print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value)
 
 
     #######################  Requesting Order Info ###################################
@@ -634,8 +646,8 @@ class TradingApp(TestWrapper, TestClient):
             elif self.is_req_head_stamp:
                 self.headTimeStamp_req_wrapper()
             else:
-                self.marketDepthOperations_req()
-                #self.tickDataOperations_req()
+                #self.marketDepthOperations_req()
+                self.tickDataOperations_req()
                 self.realTimeBars_req()
                 self.orderOperations_req()
 
