@@ -60,23 +60,39 @@ class MarketDepth2Bar(mp.Process):
         if rt_data["tick_type"] == 4:
             req_id = rt_data["req_id"]
             symbol = self.mkt_data_req_dict[req_id]["symbol"]
-            
+            price = rt_data["price"]
+            self.mkt_data_req_dict[req_id]["last_price"] = price
+
+            if self.mkt_data_stat_dict[symbol]["high"] == -1 or self.mkt_data_stat_dict[symbol]["high"] < price:
+                self.mkt_data_stat_dict[symbol]["high"] = price
+
+            if self.mkt_data_stat_dict[symbol]["low"] = -1 or self.mkt_data_stat_dict[symbol]["low"] > price:
+                self.mkt_data_stat_dict[symbol]["low"] = price
 
 
+            if self.mkt_data_stat_dict[symbol]["open"] == -1:
+                self.mkt_data_stat_dict[symbol]["open"] = price
+            self.mkt_data_stat_dict[symbol]["cur_price"] = price
 
         # if new trade is make for an exchange:
         elif rt_data["tick_type"] == 5:
-
+            req_id = rt_data["req_id"]
+            symbol = self.mkt_data_req_dict[req_id]["symbol"]
+            volume = rt_data["volume"]
+            new_volume = self.mkt_data_stat_dict[symbol]["volume"] + volume
+            if volume > 0:
+                self.mkt_data_stat_dict[symbol]["WAP"] =round( (self.mkt_data_stat_dict[symbol]["WAP"] * self.mkt_data_stat_dict[symbol]["volume"] + self.mkt_data_req_dict[req_id]["last_price"] * volume)/new_volume, 6)
+            self.mkt_data_stat_dict[symbol]["volume"] = new_volume
 
     def send_data(self):
         for symbol, stat_dict in self.mkt_data_stat_dict.items():
             post = {
                     "high": stat_dict["high"]
                     "volume": stat_dict["volume"]
-                    "WAP": stat_dict["WAP"]
+                    "WAP": round(stat_dict["WAP"], 2)
                     "low": stat_dict["low"]
                     "open": stat_dict["open"]
-                    "close": stat_dict["close"]
+                    "close": stat_dict["cur_price"]
                     "time": stat_dict["time"]
                     "datetime": stat_dict["datetime"]
             }
