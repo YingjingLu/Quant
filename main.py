@@ -61,6 +61,7 @@ from mongo_build_wrapper import *
 
 from stock_analysis import *
 from order_handler import *
+from market_depth_to_bar import *
 
 ############## End Importing Custom files ################
 
@@ -166,7 +167,7 @@ class TradingApp(TestWrapper, TestClient):
 
 
     ##################### Togglers ###################################
-        self.add_historical_data = 0
+        self.add_historical_data = 1
         self.from_start = 0
         self.populate_rest_TRADES = 0
         self.query_dict = {}
@@ -200,6 +201,7 @@ class TradingApp(TestWrapper, TestClient):
         ################### Communication queues ##########################
         self.send_rt_bar_q = mp.Queue()
         self.send_order_feedback_q = mp.Queue()
+        self.send_mkt_l1_q = mp.Queue()
         self.rt_bar_req_dict = {3101: "AMD"}
         self.market_depth_req_dict = {2101: "AMD"}
 
@@ -439,17 +441,7 @@ class TradingApp(TestWrapper, TestClient):
                     count: int):
         super().realtimeBar(reqId, time, open, high, low, close, volume, wap, count)
         #print("Time: ", time, "actualtime: ", datetime.datetime.now())
-        self.send_rt_bar_q.put({
-                                "datetime": datetime.datetime.today(),
-                                "time": time,
-                                "open": open,
-                                "close": close,
-                                "high": high,
-                                "low": low,
-                                "volume": volume,
-                                "WAP": wap,
-                                "count": count
-        })
+
 
 
     def headTimeStamp_req_wrapper(self):
@@ -485,7 +477,7 @@ class TradingApp(TestWrapper, TestClient):
         self.reqMktData(1006, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BYX"), "233,232", False, False, [])
         self.reqMktData(1007, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "IEX"), "233,232", False, False, [])
         self.reqMktData(1008, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BATS"), "233,232", False, False, [])
-        self.reqMktData(1009, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BEX"), "233,232", False, False, [])
+        self.reqMktData(1009, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "PSX"), "233,232", False, False, [])
         self.reqMktData(1010, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "DRCTEDGE"), "233,232", False, False, [])
 
     def tickDataOperations_cancel(self):
@@ -497,23 +489,25 @@ class TradingApp(TestWrapper, TestClient):
                   attrib: TickAttrib):
         super().tickPrice(reqId, tickType, price, attrib)
         if tickType == 4:
-            print("Tick Price. Ticker Id:", reqId, "tickType:", tickType, "Price:",
-                  price, "CanAutoExecute:", attrib.canAutoExecute,
-                  "PastLimit", attrib.pastLimit)
+            # print("Tick Price. Ticker Id:", reqId, "tickType:", tickType, "Price:",
+            #       price, "CanAutoExecute:", attrib.canAutoExecute,
+            #       "PastLimit", attrib.pastLimit)
+            self.send_mkt_l1_q.put({"req_id": reqId, "tick_type": tickType, "price": price, "time":int(time.time())})
 
     # ! [tickprice]
     # ! [ticksize]
     def tickSize(self, reqId: TickerId, tickType: TickType, size: int):
         super().tickSize(reqId, tickType, size)
         if tickType ==5:
-            print("Tick Size. Ticker Id:", reqId, "tickType:", tickType, "Size:", size)
+            # print("Tick Size. Ticker Id:", reqId, "tickType:", tickType, "Size:", size)
+            self.send_mkt_l1_q.put({"req_id": reqId, "tick_type": tickType, "volume": size, "time":int(time.time())})
 
     # ! [ticksize]
 
     # ! [tickgeneric]
     def tickGeneric(self, reqId: TickerId, tickType: TickType, value: float):
         super().tickGeneric(reqId, tickType, value)
-        print("Tick Generic. Ticker Id:", reqId, "tickType:", tickType, "Value:", value)
+        #print("Tick Generic. Ticker Id:", reqId, "tickType:", tickType, "Value:", value)
 
     # ! [tickgeneric]
 
@@ -521,7 +515,8 @@ class TradingApp(TestWrapper, TestClient):
     def tickString(self, reqId: TickerId, tickType: TickType, value: str):
         super().tickString(reqId, tickType, value)
         if tickType == 77 or tickType == 48:
-            print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value)
+            pass
+            #print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value)
 
 
     #######################  Requesting Order Info ###################################
@@ -648,7 +643,7 @@ class TradingApp(TestWrapper, TestClient):
             else:
                 #self.marketDepthOperations_req()
                 self.tickDataOperations_req()
-                self.realTimeBars_req()
+                # self.realTimeBars_req()
                 self.orderOperations_req()
 
 
@@ -672,9 +667,13 @@ def main():
     app = TradingApp()
     rt_price_q = mp.Queue()
     send_log_q = mp.Queue()
+    mkt_l1_converter_q = mp.Queue()
+    app_send_mkt_l1_q = app.send_mkt_l1_q
+    mkt_data_req_dict = {1004:"AMD", 1005:"AMD", 1006:"AMD", 1007:"AMD", 1008:"AMD", 1009:"AMD", 1010:"AMD"}
+    MDC = MarketDepth2Bar(mkt_data_req_dict, app_send_mkt_l1_q, {"AMD": mkt_l1_converter_q})
     oh_send_order_to_app_q = app.order_recv_q
     app_send_order_feedback_to_oh_q = app.send_order_feedback_q
-    app_send_rt_bar_to_sa_q = app.send_rt_bar_q
+    app_send_rt_bar_to_sa_q = mkt_l1_converter_q
 
     sa_send_order_to_oh_q = mp.Queue()
     oh_send_order_feedback_to_sa_q = mp.Queue()
@@ -683,11 +682,13 @@ def main():
     SA = StockAnalysis("AMD", app_send_rt_bar_to_sa_q,
                        rt_price_q,sa_send_order_to_oh_q,
                        oh_send_order_feedback_to_sa_q, send_log_q)
+
     OH.start()
     SA.start()
     app.connect(CONNECTION_IP, CONNECTION_PORT, CLIENT_ID)
-
+    MDC.start()
     app.run()
+
 
 if __name__ == "__main__":
     main()

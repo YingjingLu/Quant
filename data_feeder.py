@@ -99,9 +99,9 @@ def main():
     send_log_q = mp.Queue()
     DF = DataFeeder("AMD")
     DF.set_test_bar_size("5 secs")
-    DF.set_test_time_frame(datetime.datetime(2017, 7, 17, 0, 0, 0),
-                           datetime.datetime(2017, 7, 17, 23, 59, 59))
-
+    DF.set_test_time_frame(
+                           datetime.datetime(2017, 8, 4, 0, 0, 0),
+                           datetime.datetime(2017, 8, 4, 23, 59, 59))
     rt_price_q = mp.Queue()
     send_log_q = mp.Queue()
     oh_send_order_to_app_q = DF.order_recv_q

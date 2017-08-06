@@ -2,6 +2,7 @@ import multiprocessing as mp
 import time
 from constants import UTIL_CST, STK_CST
 import pymongo
+import datetime
 
 class MarketDepth2Bar(mp.Process):
     def __init__(self, mkt_data_req_dict, mkt_depth_recv_q,rt_bar_output_q_dict):
@@ -24,6 +25,7 @@ class MarketDepth2Bar(mp.Process):
                 self.mkt_data_stat_dict[symbol]["time"] = -1
                 self.mkt_data_stat_dict[symbol]["datetime"] = -1
                 self.mkt_data_stat_dict[symbol]["cur_price"] = -1
+                self.mkt_data_stat_dict[symbol]["count"] = 0
 
         for symbol, q in rt_bar_output_q_dict.items():
             self.mkt_data_stat_dict[symbol]["output_q"] = rt_bar_output_q_dict[symbol]
@@ -35,18 +37,25 @@ class MarketDepth2Bar(mp.Process):
 
     def reader(self):
         db_client = pymongo.MongoClient()
-
+        print("in reader")
         # calibrate start time to nearest 1 minute
         while True:
-            self.last_start_time = int(time.time())
-            if self.last_start_time % 60 == 0:
+            cur_time = int(time.time())
+            print("Time: ", cur_time)
+            if cur_time % self.min_bar_interval == 0:
                 self.calibrated_start = True
+                self.last_start_time = cur_time
                 break
+            if not self.mkt_depth_recv_q.empty():
+                data_dict = self.mkt_depth_recv_q.get(block=False)
+                self.handle_data(data_dict)
+
+        print("exit calibration")
         self.reset_data()
         while self.calibrated_start:
 
-            if not self.recv_rt_bar_q.empty():
-                data_dict = self.recv_rt_bar_q.get(block=False)
+            if not self.mkt_depth_recv_q.empty():
+                data_dict = self.mkt_depth_recv_q.get(block=False)
                 self.handle_data(data_dict)
             cur_time = int(time.time())
             # if the time interval is full, then send the statics and reset them
@@ -66,7 +75,7 @@ class MarketDepth2Bar(mp.Process):
             if self.mkt_data_stat_dict[symbol]["high"] == -1 or self.mkt_data_stat_dict[symbol]["high"] < price:
                 self.mkt_data_stat_dict[symbol]["high"] = price
 
-            if self.mkt_data_stat_dict[symbol]["low"] = -1 or self.mkt_data_stat_dict[symbol]["low"] > price:
+            if self.mkt_data_stat_dict[symbol]["low"] == -1 or self.mkt_data_stat_dict[symbol]["low"] > price:
                 self.mkt_data_stat_dict[symbol]["low"] = price
 
 
@@ -81,20 +90,23 @@ class MarketDepth2Bar(mp.Process):
             volume = rt_data["volume"]
             new_volume = self.mkt_data_stat_dict[symbol]["volume"] + volume
             if volume > 0:
-                self.mkt_data_stat_dict[symbol]["WAP"] =round( (self.mkt_data_stat_dict[symbol]["WAP"] * self.mkt_data_stat_dict[symbol]["volume"] + self.mkt_data_req_dict[req_id]["last_price"] * volume)/new_volume, 6)
+                _price = self.mkt_data_req_dict[req_id]["last_price"] if self.mkt_data_req_dict[req_id]["last_price"] != -1 else self.mkt_data_stat_dict[self.mkt_data_req_dict[req_id]["symbol"]]["cur_price"]
+                self.mkt_data_stat_dict[symbol]["WAP"] =round( (self.mkt_data_stat_dict[symbol]["WAP"] * self.mkt_data_stat_dict[symbol]["volume"] + _price * volume)/new_volume, 6)
             self.mkt_data_stat_dict[symbol]["volume"] = new_volume
+            self.mkt_data_stat_dict[symbol]["count"] += 1
 
     def send_data(self):
         for symbol, stat_dict in self.mkt_data_stat_dict.items():
             post = {
-                    "high": stat_dict["high"]
-                    "volume": stat_dict["volume"]
-                    "WAP": round(stat_dict["WAP"], 2)
-                    "low": stat_dict["low"]
-                    "open": stat_dict["open"]
-                    "close": stat_dict["cur_price"]
-                    "time": stat_dict["time"]
-                    "datetime": stat_dict["datetime"]
+                    "high": stat_dict["high"] if stat_dict["high"] != -1 else stat_dict["cur_price"],
+                    "volume": stat_dict["volume"],
+                    "WAP": round(stat_dict["WAP"], 2) if stat_dict["WAP"] != 0 else stat_dict["cur_price"],
+                    "low": stat_dict["low"] if stat_dict["low"] != -1 else stat_dict["cur_price"],
+                    "open": stat_dict["open"] if stat_dict["open"] != -1 else stat_dict["cur_price"],
+                    "close": stat_dict["cur_price"],
+                    "time": stat_dict["time"],
+                    "datetime": stat_dict["datetime"],
+                    "count": stat_dict["count"]
             }
             stat_dict["output_q"].put(post)
 
@@ -108,4 +120,4 @@ class MarketDepth2Bar(mp.Process):
             stat_dict["close"] = -1
             stat_dict["time"] = self.last_start_time
             stat_dict["datetime"] = datetime.datetime.today()
-            stat_dict["cur_price"] = -1
+            stat_dict["count"] = 0
