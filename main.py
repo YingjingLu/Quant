@@ -1,6 +1,6 @@
 #################  Globals ############################
 CONNECTION_IP = "127.0.0.1"
-CONNECTION_PORT = 7497
+CONNECTION_PORT = 7496
 CLIENT_ID = 0
 
 
@@ -167,7 +167,7 @@ class TradingApp(TestWrapper, TestClient):
 
 
     ##################### Togglers ###################################
-        self.add_historical_data = 1
+        self.add_historical_data = 0
         self.from_start = 0
         self.populate_rest_TRADES = 0
         self.query_dict = {}
@@ -472,13 +472,13 @@ class TradingApp(TestWrapper, TestClient):
         self.cancelRealTimeBars(3101)
 
     def tickDataOperations_req(self):
-        self.reqMktData(1004, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "ISLAND"), "233,232", False, False, [])
-        self.reqMktData(1005, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "FINRA"), "233,232", False, False, [])
-        self.reqMktData(1006, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BYX"), "233,232", False, False, [])
-        self.reqMktData(1007, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "IEX"), "233,232", False, False, [])
-        self.reqMktData(1008, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BATS"), "233,232", False, False, [])
-        self.reqMktData(1009, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "PSX"), "233,232", False, False, [])
-        self.reqMktData(1010, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "DRCTEDGE"), "233,232", False, False, [])
+        self.reqMktData(1004, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "ISLAND"), "233", False, False, [])
+        self.reqMktData(1005, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "FINRA"), "233", False, False, [])
+        self.reqMktData(1006, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BYX"), "233", False, False, [])
+        self.reqMktData(1007, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "IEX"), "233", False, False, [])
+        self.reqMktData(1008, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "BATS"), "233", False, False, [])
+        self.reqMktData(1009, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "PSX"), "233", False, False, [])
+        self.reqMktData(1010, ContractCreateMethods.create_US_stock_contract(stock_symbol = "AMD", exchange = "DRCTEDGE"), "233", False, False, [])
 
     def tickDataOperations_cancel(self):
         # Canceling the market data subscription
@@ -489,9 +489,9 @@ class TradingApp(TestWrapper, TestClient):
                   attrib: TickAttrib):
         super().tickPrice(reqId, tickType, price, attrib)
         if tickType == 4:
-            # print("Tick Price. Ticker Id:", reqId, "tickType:", tickType, "Price:",
-            #       price, "CanAutoExecute:", attrib.canAutoExecute,
-            #       "PastLimit", attrib.pastLimit)
+            print("Tick Price. Ticker Id:", reqId, "tickType:", tickType, "Price:",
+                  price, "CanAutoExecute:", attrib.canAutoExecute,
+                  "PastLimit", attrib.pastLimit, "Datetime: ", datetime.datetime.today())
             self.send_mkt_l1_q.put({"req_id": reqId, "tick_type": tickType, "price": price, "time":int(time.time())})
 
     # ! [tickprice]
@@ -499,7 +499,7 @@ class TradingApp(TestWrapper, TestClient):
     def tickSize(self, reqId: TickerId, tickType: TickType, size: int):
         super().tickSize(reqId, tickType, size)
         if tickType ==5:
-            # print("Tick Size. Ticker Id:", reqId, "tickType:", tickType, "Size:", size)
+            #print("Tick Size. Ticker Id:", reqId, "tickType:", tickType, "Size:", size, "Datetime: ", datetime.datetime.today())
             self.send_mkt_l1_q.put({"req_id": reqId, "tick_type": tickType, "volume": size, "time":int(time.time())})
 
     # ! [ticksize]
@@ -516,7 +516,7 @@ class TradingApp(TestWrapper, TestClient):
         super().tickString(reqId, tickType, value)
         if tickType == 77 or tickType == 48:
             pass
-            #print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value)
+            #print("Tick string. Ticker Id:", reqId, "Type:", tickType, "Value:", value, "Datetime: ", datetime.datetime.today())
 
 
     #######################  Requesting Order Info ###################################
@@ -644,7 +644,7 @@ class TradingApp(TestWrapper, TestClient):
                 #self.marketDepthOperations_req()
                 self.tickDataOperations_req()
                 # self.realTimeBars_req()
-                self.orderOperations_req()
+                # self.orderOperations_req()
 
 
     def stop(self):

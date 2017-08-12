@@ -80,7 +80,7 @@ class StockAnalysis(mp.Process):
         self.join()
 
     def rt_bar_handler(self, rt_dict, db):
-        # print("RealTime_Bar: ", rt_dict)
+        #print("RealTime_Bar: ", rt_dict)
         db[convert_RT_collection_name("5 secs")].insert_one(rt_dict)
         #self.log_file.write("Got 5sec RT Bar: " + str(rt_dict) + "\n")
         if (self.rt_bar_calibrated == False) and (rt_dict["time"] % QUERY_CST.RT_BAR_BAR_SIZE_TO_SEC[self.calc_bar_size] == 0):
